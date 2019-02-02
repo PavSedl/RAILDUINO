@@ -21,8 +21,8 @@
      digital input state:            rail1 di1 1
      analog input state:             rail1 ai1 520
    commands:
-     relay on command:               rail1 ro12 on
-     relay off command:              rail1 ro5 off
+     relay on command:               rail1 do12 on
+     relay off command:              rail1 do5 off
      high side switch on command:    rail1 ho2 on    
      high side switch off command:   rail1 ho4 off
      low side switch on command:     rail1 lo1 on    
@@ -329,25 +329,11 @@ void loop() {
 
     statusLed();
     
-    if (!ethOn) { heartBeat();} else { IPrenew();  Mb.MbsRun(); }
+    if (!ethOn) { heartBeat();} else { Mb.MbsRun();}
 }
 
 void (* resetFunc) (void) = 0; 
 
-void IPrenew()
-{
-  byte rtnVal = Ethernet.maintain();
-  switch(rtnVal) {
-       case 1: dbgln(F("DHCP renew fail"));        
-               break;
-       case 2: dbgln(F("DHCP renew ok"));        
-               break;
-       case 3: dbgln(F("DHCP rebind fail"));        
-               break;
-       case 4: dbgln(F("DHCP rebind ok"));        
-               break; 
-  }
-}
 
 void printIPAddress()
 {
@@ -690,7 +676,7 @@ void processCommands() {
         digitalWrite(ledPins[1],HIGH);
         if (cmd.startsWith(relayStr)) {
             for (int i = 0; i < numOfRelays; i++) {
-                if (i<8) {byteNo = relOut1Byte; bitPos = i;} else {int byteNo = relOut2Byte; bitPos = i-8;}
+                if (i<8) {byteNo = relOut1Byte; bitPos = i;} else {byteNo = relOut2Byte; bitPos = i-8;}
                 if (cmd == relayOnCommands[i]) {
                     bitWrite(Mb.MbData[byteNo],bitPos,1);
                 } else if (cmd == relayOffCommands[i]) {

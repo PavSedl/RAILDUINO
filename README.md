@@ -1,4 +1,4 @@
-# RAILDUINO 2.0
-Oficiální firmware pro Railduino 2.0
+# RAILDUINO 2
+Oficiální firmware pro Railduino 2
 
 

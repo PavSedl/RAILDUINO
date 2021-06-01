@@ -21,8 +21,8 @@
      digital input state:            rail1 di1 1
      analog input state:             rail1 ai1 520
    commands:
-     relay on command:               rail1 do12 on
-     relay off command:              rail1 do5 off
+     relay on command:               rail1 ro12 on
+     relay off command:              rail1 ro5 off
      high side switch on command:    rail1 ho2 on    
      high side switch off command:   rail1 ho4 off
      low side switch on command:     rail1 lo1 on    

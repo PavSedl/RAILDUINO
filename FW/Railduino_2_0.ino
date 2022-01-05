@@ -19,7 +19,7 @@
      DS18B20 1wire sensor packet:    rail1 1w 2864fc3008082 25.44
      DS2438 1wire sensor packet:     rail1 1w 2612c3102004f 25.44 1.23 0.12
      digital input state:            rail1 di1 1
-     analog input state:             rail1 ai1 520
+     analog input state:             rail1 ai1 250
    commands:
      relay on command:               rail1 ro12 on
      relay off command:              rail1 ro5 off
@@ -36,8 +36,8 @@
      heart beat cycle(only RS485):   60000 ms
 
    MODBUS syntax:
-   commands: FC3, FC16
-   modbus register map (1 register = 1 byte = 8 bits)
+   commands: FC1 - FC16
+   modbus register map (1 register = 2 bytes = 16 bits)
           register number            description
           0                          relay outputs 1-8
           1                          relay outputs 9-12
@@ -104,7 +104,7 @@ EthernetUDP udpSend;
 #define commLedTimeOn 50
 #define commLedTimeOff 50
 #define debouncingTime 5
-#define serialTxControl 16
+#define serial3TxControl 16
 #define numOfRelays 12
 int relayPins[numOfRelays] = {37, 35, 33, 31, 29, 27, 39, 41, 43, 45, 47, 49};
 #define numOfHSSwitches 4
@@ -129,10 +129,10 @@ int boardAddress = 0;
 int ethOn = 0;
 long baudRates[2] = {19200, 115200};
 long selectedBaudRate = 115200;
-int serialTxDelay[2] = {30, 10};
-int selectedSerialTxDelay = 10;
-int serialTimeOut[2] = {500, 20};
-int selectedSerialTimeOut = 20;
+int serial3TxDelay[2] = {30, 10};
+int selectedSerial3TxDelay = 10;
+int serial3TimeOut[2] = {500, 20};
+int selectedSerial3TimeOut = 20;
 bool ticTac = 0;
 
 String boardAddressStr;
@@ -202,6 +202,7 @@ DS2438 ds2438(&ds);
 void setup() {
 
     Serial.begin(9600);  
+    
 
     dbg("Railduino firmware version: ");
     dbgln(ver);
@@ -265,19 +266,19 @@ void setup() {
     dbg("RS485 speed: ");
     if (!digitalRead(dipSwitchPins[5]))  { 
       selectedBaudRate = baudRates[0]; 
-      selectedSerialTxDelay = serialTxDelay[0]; 
-      selectedSerialTimeOut = serialTimeOut[0];
+      selectedSerial3TxDelay = serial3TxDelay[0]; 
+      selectedSerial3TimeOut = serial3TimeOut[0];
     }
     else { 
       selectedBaudRate = baudRates[1]; 
-      selectedSerialTxDelay = serialTxDelay[1];
-      selectedSerialTimeOut = serialTimeOut[1];
+      selectedSerial3TxDelay = serial3TxDelay[1];
+      selectedSerial3TimeOut = serial3TimeOut[1];
     }
     dbg(selectedBaudRate);
     dbg(" Bd, Tx Delay: ");
-    dbg(selectedSerialTxDelay);
+    dbg(selectedSerial3TxDelay);
     dbg(" ms, Timeout: ");
-    dbg(selectedSerialTimeOut);
+    dbg(selectedSerial3TimeOut);
     dbgln(" ms");
             
     boardAddressStr = String(boardAddress);  
@@ -304,9 +305,9 @@ void setup() {
     memset(Mb.MbData, 0, sizeof(Mb.MbData));
 
     Serial3.begin(selectedBaudRate);
-    if (selectedBaudRate == baudRates[1]) { Serial3.setTimeout(20);} else {Serial3.setTimeout(500);}
-    pinMode(serialTxControl, OUTPUT);
-    digitalWrite(serialTxControl, 0);
+    if (selectedBaudRate == baudRates[1]) { Serial3.setTimeout(serial3TimeOut[1]);} else {Serial3.setTimeout(serial3TimeOut[0]);}
+    pinMode(serial3TxControl, OUTPUT);
+    digitalWrite(serial3TxControl, 0);
 
     dbg("Address: ");
     dbgln(boardAddressStr);
@@ -316,9 +317,7 @@ void setup() {
 }
 
 void loop() {
-
-   
-    
+     
     readDigInputs();
 
     readAnaInputs();
@@ -568,10 +567,10 @@ void sendMsg(String message) {
       udpSend.endPacket();
     }
 
-    digitalWrite(serialTxControl, HIGH);     
+    digitalWrite(serial3TxControl, HIGH);     
     Serial3.print(message + "\n");
-    delay(selectedSerialTxDelay);    
-    digitalWrite(serialTxControl, LOW);
+    delay(selectedSerial3TxDelay);    
+    digitalWrite(serial3TxControl, LOW);
      
     digitalWrite(ledPins[1],LOW);
     
@@ -711,7 +710,7 @@ void processCommands() {
         }
         digitalWrite(ledPins[1],LOW);
       }
-      
  }
+
 
 

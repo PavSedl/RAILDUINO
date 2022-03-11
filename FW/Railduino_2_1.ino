@@ -77,6 +77,7 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <MgsModbus.h>
+#include <avr/wdt.h>
 
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0};
 unsigned int listenPort = 44444;
@@ -216,7 +217,6 @@ void setup() {
 
     Serial.begin(9600);  
     
-
     dbg("Railduino firmware version: ");
     dbgln(ver);
     
@@ -322,10 +322,14 @@ void setup() {
     
     lookUpSensors(); 
 
+    wdt_enable(WDTO_8S);
+
 }
 
 void loop() {
-     
+    
+    wdt_reset();
+
     readDigInputs();
 
     readAnaInputs();
@@ -338,7 +342,7 @@ void loop() {
     
     if (ethOn) {Mb.MbsRun(); IPrenew();} else {heartBeat();}
 
-    if (rtuOn) {modbus_update();}   
+    if (rtuOn) {modbus_update();}      
  
 }
 
@@ -613,7 +617,7 @@ void setRelay(int relay, int value) {
     if (relay > numOfRelays) {
         return;
     }
-    dbgln("Writing to relay " + String(relay+1) + " value " + String(value));
+    //dbgln("Writing to relay " + String(relay+1) + " value " + String(value));
     digitalWrite(relayPins[relay], value);
 }
 
@@ -621,7 +625,7 @@ void setHSSwitch(int hsswitch, int value) {
     if (hsswitch > numOfHSSwitches) {
         return;
     }
-    dbgln("Writing to high side switch" + String(hsswitch+1) + " value " + String(value));
+    //dbgln("Writing to high side switch" + String(hsswitch+1) + " value " + String(value));
     digitalWrite(HSSwitchPins[hsswitch], value);
 }
 
@@ -629,7 +633,7 @@ void setLSSwitch(int lsswitch, int value) {
     if (lsswitch > numOfLSSwitches) {
         return;
     }
-    dbgln("Writing to low side switch" + String(lsswitch+1) + " value " + String(value));
+    //dbgln("Writing to low side switch" + String(lsswitch+1) + " value " + String(value));
     digitalWrite(LSSwitchPins[lsswitch], value);
 }
 
@@ -637,7 +641,7 @@ void setAnaOut(int pwm, int value) {
     if (pwm > numOfAnaOuts) {
         return;
     }
-    dbgln("Writing to analog output " + String(pwm+1) + " value " + String(value));
+    //dbgln("Writing to analog output " + String(pwm+1) + " value " + String(value));
     analogWrite(anaOutPins[pwm], value);
 }
 

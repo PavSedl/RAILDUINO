@@ -143,6 +143,7 @@ int ledPins[numOfLedPins] = {13, 17};
 int boardAddress = 0;
 int ethOn = 0;
 int rtuOn = 0;
+int staticIpOn = 0;
 long baudRate = 115200;
 int serial3TxDelay = 10;
 int serial3TimeOut = 20;
@@ -295,6 +296,7 @@ void setup() {
       {
         dbgln("Failed to configure Ethernet using DHCP, using Static Mode");
         Ethernet.begin(mac, listenIpAddress);
+        staticIpOn = 1;
       }
          
       udpRecv.begin(listenPort);
@@ -340,7 +342,7 @@ void loop() {
 
     statusLed();
     
-    if (ethOn) {Mb.MbsRun(); IPrenew();} else {heartBeat();}
+    if (ethOn) {Mb.MbsRun(); if (!staticIpOn) {IPrenew();}} else {heartBeat();}
 
     if (rtuOn) {modbus_update();}      
  
@@ -398,6 +400,7 @@ void statusLed() {
 String oneWireAddressToString(byte addr[]) {
     String s = "";
     for (int i = 0; i < 8; i++) {
+        if(addr[i] < 0x10) {s += '0';}
         s += String(addr[i], HEX);
     }
     return s;
@@ -406,7 +409,7 @@ String oneWireAddressToString(byte addr[]) {
 void lookUpSensors(){
   byte j=0, k=0, l=0, m=0;
   while ((j <= maxSensors) && (ds.search(sensors[j]))){
-     if (!OneWire::crc8(sensors[j], 7) != sensors[j][7]){
+     if (!(OneWire::crc8(sensors[j], 7) != sensors[j][7])){
         if (sensors[j][0] == 38){
            for (l=0;l<8;l++){ sensors2438[k][l]=sensors[j][l]; }  
            k++;  

@@ -16,10 +16,10 @@
 /*
    UDP syntax:
    signals:
-     DS18B20 1wire sensor packet:    rail1 1w 2864fc3008082 25.44
-     DS2438 1wire sensor packet:     rail1 1w 2612c3102004f 25.44 1.23 0.12
+     DS18B20 1wire sensor packet:    rail1 1w 2864fc030080802a 25.44
+     DS2438 1wire sensor packet:     rail1 1w 2612c301020040fa 25.44 1.23 0.12
      digital input state:            rail1 di1 1
-     analog input state:             rail1 ai1 250
+     analog input state:             rail1 ai1 1020
    commands:
      relay on command:               rail1 ro12 on
      relay off command:              rail1 ro5 off
@@ -35,8 +35,9 @@
      analog input cycle:             10000 ms
      heart beat cycle(only RS485):   60000 ms
 
-   MODBUS syntax:
-   commands: FC1 - FC16
+   MODBUS TCP commands: FC1 - FC16
+   MODBUS RTU commands: FC3, FC6, FC16
+   
    modbus register map (1 register = 2 bytes = 16 bits)
           register number            description
           0                          relay outputs 1-8
@@ -50,7 +51,15 @@
           8                          analog input 1           0-256
           9                          analog input 2           0-256
           10                         service - reset (bit 0)
-   
+          11                         1st DS2438 Temp (value multiplied by 100)
+          12                         1st DS2438 Vad (value multiplied by 100)
+          13                         1st DS2438 Vsens (value multiplied by 100)
+          -
+          39                         DS2438 values (up to 10 sensors) 
+          40-50                      DS18B20 Temperature (up to 10 sensors) (value multiplied by 100)
+
+   Combination of 1wire sensors must be up to 10pcs maximum (DS18B20 or DS2438)
+           
    using RS485 the UDP syntax must have \n symbol at the end of the command line
      
 */
@@ -60,13 +69,15 @@
 //#define dbgln(x) Serial.println(x);
 #define dbgln(x) ;
 
-#define ver 2.2
+#define ver 2.1
 
+#include <SimpleModbusSlave.h>
 #include <OneWire.h>
 #include <DS2438.h>
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <MgsModbus.h>
+#include <avr/wdt.h>
 
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0};
 unsigned int listenPort = 44444;
@@ -86,6 +97,10 @@ IPAddress sendIpAddress(255, 255, 255, 255);
 #define anaInp1Byte 8
 #define anaInp2Byte 9
 #define serviceByte 10
+#define oneWireTempByte 11
+#define oneWireVadByte 12
+#define oneWireVsensByte 13
+#define oneWireDS18B20Byte 40
 
 #define inputPacketBufferSize UDP_TX_PACKET_MAX_SIZE
 char inputPacketBuffer[UDP_TX_PACKET_MAX_SIZE];
@@ -127,12 +142,11 @@ int dipSwitchPins[numOfDipSwitchPins] = {57, 56, 55, 54, 58, 59};
 int ledPins[numOfLedPins] = {18, 17};
 int boardAddress = 0;
 int ethOn = 0;
-long baudRates[2] = {19200, 115200};
-long selectedBaudRate = 115200;
-int serial3TxDelay[2] = {30, 10};
-int selectedSerial3TxDelay = 10;
-int serial3TimeOut[2] = {500, 20};
-int selectedSerial3TimeOut = 20;
+int rtuOn = 0;
+int staticIpOn = 0;
+long baudRate = 115200;
+int serial3TxDelay = 10;
+int serial3TimeOut = 20;
 bool ticTac = 0;
 
 String boardAddressStr;
@@ -199,11 +213,11 @@ byte sensors2438[maxSensors][8], sensors18B20[maxSensors][8];
 DS2438 ds2438(&ds);
 
 
+
 void setup() {
 
     Serial.begin(9600);  
     
-
     dbg("Railduino firmware version: ");
     dbgln(ver);
     
@@ -263,22 +277,13 @@ void setup() {
     if (!digitalRead(dipSwitchPins[4]))  { ethOn = 1; dbgln("Ethernet ON");} else { ethOn = 0; dbgln("Ethernet OFF");}
 
     pinMode(dipSwitchPins[5], INPUT);
-    dbg("RS485 speed: ");
-    if (!digitalRead(dipSwitchPins[5]))  { 
-      selectedBaudRate = baudRates[0]; 
-      selectedSerial3TxDelay = serial3TxDelay[0]; 
-      selectedSerial3TimeOut = serial3TimeOut[0];
-    }
-    else { 
-      selectedBaudRate = baudRates[1]; 
-      selectedSerial3TxDelay = serial3TxDelay[1];
-      selectedSerial3TimeOut = serial3TimeOut[1];
-    }
-    dbg(selectedBaudRate);
+    if (!digitalRead(dipSwitchPins[5]))  { rtuOn = 1; dbgln("485 RTU ON ");} else { rtuOn = 0; dbgln("485 RTU OFF");}
+    
+    dbg(baudRate);
     dbg(" Bd, Tx Delay: ");
-    dbg(selectedSerial3TxDelay);
+    dbg(serial3TxDelay);
     dbg(" ms, Timeout: ");
-    dbg(selectedSerial3TimeOut);
+    dbg(serial3TimeOut);
     dbgln(" ms");
             
     boardAddressStr = String(boardAddress);  
@@ -291,6 +296,7 @@ void setup() {
       {
         dbgln("Failed to configure Ethernet using DHCP, using Static Mode");
         Ethernet.begin(mac, listenIpAddress);
+        staticIpOn = 1;
       }
          
       udpRecv.begin(listenPort);
@@ -304,8 +310,12 @@ void setup() {
 
     memset(Mb.MbData, 0, sizeof(Mb.MbData));
 
-    Serial3.begin(selectedBaudRate);
-    if (selectedBaudRate == baudRates[1]) { Serial3.setTimeout(serial3TimeOut[1]);} else {Serial3.setTimeout(serial3TimeOut[0]);}
+    if (rtuOn) {
+      modbus_configure(&Serial3, baudRate, SERIAL_8N1, boardAddress, serial3TxControl, sizeof(Mb.MbData), Mb.MbData); 
+    }
+    
+    Serial3.begin(baudRate);
+    Serial3.setTimeout(serial3TimeOut);
     pinMode(serial3TxControl, OUTPUT);
     digitalWrite(serial3TxControl, 0);
 
@@ -314,10 +324,14 @@ void setup() {
     
     lookUpSensors(); 
 
+    wdt_enable(WDTO_8S);
+
 }
 
 void loop() {
      
+    wdt_reset();
+    
     readDigInputs();
 
     readAnaInputs();
@@ -328,11 +342,28 @@ void loop() {
 
     statusLed();
     
-    if (!ethOn) { heartBeat();} else { Mb.MbsRun();}
+    if (ethOn) {Mb.MbsRun(); if (!staticIpOn) {IPrenew();}} else {heartBeat();}
+
+    if (rtuOn) {modbus_update();} 
+    
 }
 
 void (* resetFunc) (void) = 0; 
 
+void IPrenew()
+{
+  byte rtnVal = Ethernet.maintain();
+  switch(rtnVal) {
+       case 1: dbgln(F("DHCP renew fail"));        
+               break;
+       case 2: dbgln(F("DHCP renew ok"));        
+               break;
+       case 3: dbgln(F("DHCP rebind fail"));        
+               break;
+       case 4: dbgln(F("DHCP rebind ok"));        
+               break; 
+  }
+}
 
 void printIPAddress()
 {
@@ -369,6 +400,7 @@ void statusLed() {
 String oneWireAddressToString(byte addr[]) {
     String s = "";
     for (int i = 0; i < 8; i++) {
+        if(addr[i] < 0x10) {s += '0';}
         s += String(addr[i], HEX);
     }
     return s;
@@ -377,7 +409,7 @@ String oneWireAddressToString(byte addr[]) {
 void lookUpSensors(){
   byte j=0, k=0, l=0, m=0;
   while ((j <= maxSensors) && (ds.search(sensors[j]))){
-     if (!OneWire::crc8(sensors[j], 7) != sensors[j][7]){
+     if (!(OneWire::crc8(sensors[j], 7) != sensors[j][7])){
         if (sensors[j][0] == 38){
            for (l=0;l<8;l++){ sensors2438[k][l]=sensors[j][l]; }  
            k++;  
@@ -456,6 +488,9 @@ void processOnewire() {
          ds2438.begin();
          ds2438.update(sensors2438[oneWireCnt]);
          if (!ds2438.isError()) {
+            Mb.MbData[oneWireTempByte + (oneWireCnt*3)] = ds2438.getTemperature()*100; 
+            Mb.MbData[oneWireVadByte + (oneWireCnt*3)] = ds2438.getVoltage(DS2438_CHA)*100; 
+            Mb.MbData[oneWireVsensByte + (oneWireCnt*3)] = ds2438.getVoltage(DS2438_CHB)*100; 
             sendMsg("1w " + oneWireAddressToString(sensors2438[oneWireCnt]) + " " + String(ds2438.getTemperature(), 2) + " " + String(ds2438.getVoltage(DS2438_CHA), 2) + " " + String(ds2438.getVoltage(DS2438_CHB), 2));
          }
          oneWireCnt++;
@@ -481,6 +516,7 @@ void processOnewire() {
          return;
       }
       if ((oneWireCnt < DS18B20count)){  
+         Mb.MbData[oneWireDS18B20Byte + oneWireCnt] = dsreadtemp(ds,sensors18B20[oneWireCnt])*100; 
          sendMsg("1w " + oneWireAddressToString(sensors18B20[oneWireCnt]) + " " + String(dsreadtemp(ds,sensors18B20[oneWireCnt]), 2));
          oneWireCnt++;
       } else {
@@ -533,11 +569,11 @@ void readAnaInputs() {
     analogTimer.sleep(anaInputCycle);
     for (int i = 0; i < numOfAnaInputs; i++) {
         int pin = analogPins[i];
-        float value = analogRead(pin) * (255 / 1023.0);
+        float value = analogRead(pin); //* (255 / 1023.0);
         float oldValue = analogStatus[i];
         analogStatus[i] = value;
         if (value != oldValue) {
-            Mb.MbData[i+8] = (byte) value;
+            Mb.MbData[i+8] = (int)value;
             sendAnaInput(i+1,Mb.MbData[i+8]);
         }
     } 
@@ -567,11 +603,13 @@ void sendMsg(String message) {
       udpSend.endPacket();
     }
 
+    if (!rtuOn) {
     digitalWrite(serial3TxControl, HIGH);     
     Serial3.print(message + "\n");
-    delay(selectedSerial3TxDelay);    
+    delay(serial3TxDelay);    
     digitalWrite(serial3TxControl, LOW);
-     
+    }
+    
     digitalWrite(ledPins[1],LOW);
     
     dbg("Sending packet: ");
@@ -611,14 +649,16 @@ void setAnaOut(int pwm, int value) {
 }
 
 boolean receivePacket(String *cmd) {
-    
-    while (Serial3.available() > 0) {    
-      *cmd = Serial3.readStringUntil('\n'); 
-      if (cmd->startsWith(boardAddressRailStr)) {
-         cmd->replace(boardAddressRailStr, "");
-         cmd->trim();
-         return true;
-      }   
+
+    if (!rtuOn) {
+      while (Serial3.available() > 0) {    
+        *cmd = Serial3.readStringUntil('\n'); 
+        if (cmd->startsWith(boardAddressRailStr)) {
+          cmd->replace(boardAddressRailStr, "");
+          cmd->trim();
+          return true;
+        }   
+      }
     }   
     
     if (ethOn) {
@@ -711,6 +751,3 @@ void processCommands() {
         digitalWrite(ledPins[1],LOW);
       }
  }
-
-
-

@@ -127,7 +127,6 @@ class W5100Class {
 
 public:
   static uint8_t init(void);
-  static uint8_t reset(void);
 
   inline void setGatewayIp(const uint8_t * addr) { writeGAR(addr); }
   inline void getGatewayIp(uint8_t * addr) { readGAR(addr); }
@@ -299,7 +298,6 @@ public:
 private:
   static uint8_t chip;
   static uint8_t ss_pin;
-  static bool initialized;
   static uint8_t softReset(void);
   static uint8_t isW5100(void);
   static uint8_t isW5200(void);
@@ -456,13 +454,26 @@ extern W5100Class W5100;
 #ifndef UTIL_H
 #define UTIL_H
 
-#define htons(x) ( (((x)<<8)&0xFF00) | (((x)>>8)&0xFF) )
+#ifndef htons
+// The host order of the Arduino platform is little endian.
+// Sometimes it is desired to convert to big endian (or
+// network order)
+
+// Host to Network short
+#define htons(x) ( (((x)&0xFF)<<8) | (((x)>>8)&0xFF) )
+
+// Network to Host short
 #define ntohs(x) htons(x)
 
+// Host to Network long
 #define htonl(x) ( ((x)<<24 & 0xFF000000UL) | \
                    ((x)<< 8 & 0x00FF0000UL) | \
                    ((x)>> 8 & 0x0000FF00UL) | \
                    ((x)>>24 & 0x000000FFUL) )
+
+// Network to Host long
 #define ntohl(x) htonl(x)
+
+#endif // !defined(htons)
 
 #endif

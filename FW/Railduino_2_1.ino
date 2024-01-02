@@ -16,13 +16,13 @@
 /*
    UDP syntax:
    signals:
-     DS18B20 1wire sensor packet:    rail1 1w 2864fc3008082 25.44
-     DS2438 1wire sensor packet:     rail1 1w 2612c3102004f 25.44 1.23 0.12
+     DS18B20 1wire sensor packet:    rail1 1w 2864fc030080802a 25.44
+     DS2438 1wire sensor packet:     rail1 1w 2612c301020040fa 25.44 1.23 0.12
      digital input state:            rail1 di1 1
      analog input state:             rail1 ai1 1020
    commands:
-     relay on command:               rail1 do12 on
-     relay off command:              rail1 do5 off
+     relay on command:               rail1 ro12 on
+     relay off command:              rail1 ro5 off
      high side switch on command:    rail1 ho2 on    
      high side switch off command:   rail1 ho4 off
      low side switch on command:     rail1 lo1 on    
@@ -318,6 +318,9 @@ void setup() {
     Serial3.setTimeout(serial3TimeOut);
     pinMode(serial3TxControl, OUTPUT);
     digitalWrite(serial3TxControl, 0);
+
+    pinMode(4,OUTPUT);  
+    digitalWrite(4,HIGH); // disable SD SPI
 
     dbg("Address: ");
     dbgln(boardAddressStr);
@@ -620,7 +623,7 @@ void setRelay(int relay, int value) {
     if (relay > numOfRelays) {
         return;
     }
-    //dbgln("Writing to relay " + String(relay+1) + " value " + String(value));
+    dbgln("Writing to relay " + String(relay+1) + " value " + String(value));
     digitalWrite(relayPins[relay], value);
 }
 
@@ -628,7 +631,7 @@ void setHSSwitch(int hsswitch, int value) {
     if (hsswitch > numOfHSSwitches) {
         return;
     }
-    //dbgln("Writing to high side switch" + String(hsswitch+1) + " value " + String(value));
+    dbgln("Writing to high side switch" + String(hsswitch+1) + " value " + String(value));
     digitalWrite(HSSwitchPins[hsswitch], value);
 }
 
@@ -636,7 +639,7 @@ void setLSSwitch(int lsswitch, int value) {
     if (lsswitch > numOfLSSwitches) {
         return;
     }
-    //dbgln("Writing to low side switch" + String(lsswitch+1) + " value " + String(value));
+    dbgln("Writing to low side switch" + String(lsswitch+1) + " value " + String(value));
     digitalWrite(LSSwitchPins[lsswitch], value);
 }
 
@@ -644,19 +647,19 @@ void setAnaOut(int pwm, int value) {
     if (pwm > numOfAnaOuts) {
         return;
     }
-    //dbgln("Writing to analog output " + String(pwm+1) + " value " + String(value));
+    dbgln("Writing to analog output " + String(pwm+1) + " value " + String(value));
     analogWrite(anaOutPins[pwm], value);
 }
 
 boolean receivePacket(String *cmd) {
-
+    int returnStatus = 0;
     if (!rtuOn) {
       while (Serial3.available() > 0) {    
         *cmd = Serial3.readStringUntil('\n'); 
         if (cmd->startsWith(boardAddressRailStr)) {
           cmd->replace(boardAddressRailStr, "");
           cmd->trim();
-          return true;
+          returnStatus = 1;
         }   
       }   
     }
@@ -670,12 +673,11 @@ boolean receivePacket(String *cmd) {
         if (cmd->startsWith(boardAddressRailStr)) {
             cmd->replace(boardAddressRailStr, "");
             cmd->trim();
-            return true;
+            returnStatus = 1;
         }
       }
-    }
-   
-    return false;
+    }  
+    return returnStatus;
 }
 
 

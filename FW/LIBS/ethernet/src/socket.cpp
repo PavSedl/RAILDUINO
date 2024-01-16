@@ -536,3 +536,4 @@ bool EthernetClass::socketSendUDP(uint8_t s)
 	/* Sent ok */
 	return true;
 }
+

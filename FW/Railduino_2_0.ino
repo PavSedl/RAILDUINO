@@ -319,6 +319,9 @@ void setup() {
     pinMode(serial3TxControl, OUTPUT);
     digitalWrite(serial3TxControl, 0);
 
+    pinMode(4,OUTPUT);  
+    digitalWrite(4,HIGH); // disable SD SPI
+
     dbg("Address: ");
     dbgln(boardAddressStr);
     
@@ -649,14 +652,14 @@ void setAnaOut(int pwm, int value) {
 }
 
 boolean receivePacket(String *cmd) {
-
+    int returnStatus = 0;
     if (!rtuOn) {
       while (Serial3.available() > 0) {    
         *cmd = Serial3.readStringUntil('\n'); 
         if (cmd->startsWith(boardAddressRailStr)) {
           cmd->replace(boardAddressRailStr, "");
           cmd->trim();
-          return true;
+          returnStatus = 1;
         }   
       }
     }   
@@ -670,12 +673,11 @@ boolean receivePacket(String *cmd) {
         if (cmd->startsWith(boardAddressRailStr)) {
             cmd->replace(boardAddressRailStr, "");
             cmd->trim();
-            return true;
+            returnStatus = 1;
         }
       }
     }
-   
-    return false;
+    return returnStatus;
 }
 
 

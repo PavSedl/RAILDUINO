@@ -532,22 +532,28 @@ void handleWebServer() {
 
                     // Print DS2438 sensor data
                     client.print(F("\"ds2438\":[")); 
-                    for (int i = 0; i < DS2438count; i++) {
-                        client.print(F("{\"sn\":\"")); client.print(oneWireAddressToString(sensors2438[i])); 
-                        client.print(F("\",\"temp\":")); client.print(ds2438Temps[i], 2);
-                        client.print(F(",\"vad\":")); client.print(ds2438Vads[i], 2);
-                        client.print(F(",\"vsens\":")); client.print(ds2438Vsens[i], 2);
-                        client.print(F("}")); client.print(i < DS2438count - 1 ? F(",") : F("],"));
+                    if (DS2438count > 0) {
+                        for (int i = 0; i < DS2438count; i++) {
+                            client.print(F("{\"sn\":\"")); client.print(oneWireAddressToString(sensors2438[i])); 
+                            client.print(F("\",\"temp\":")); client.print(ds2438Temps[i], 2);
+                            client.print(F(",\"vad\":")); client.print(ds2438Vads[i], 2);
+                            client.print(F(",\"vsens\":")); client.print(ds2438Vsens[i], 2);
+                            client.print(F("}")); client.print(i < DS2438count - 1 ? F(",") : F("],"));
+                        }
+                    } else {
+                    client.print(F("],"));   
                     }
-
                     // Print DS18B20 sensor data
                     client.print(F("\"ds18b20\":[")); 
-                    for (int i = 0; i < DS18B20count; i++) {
-                        client.print(F("{\"sn\":\"")); client.print(oneWireAddressToString(sensors18B20[i])); 
-                        client.print(F("\",\"temp\":")); client.print(ds18b20Temps[i], 2);
-                        client.print(F("}")); client.print(i < DS18B20count - 1 ? F(",") : F("],"));
+                    if (DS18B20count > 0) {
+                        for (int i = 0; i < DS18B20count; i++) {
+                            client.print(F("{\"sn\":\"")); client.print(oneWireAddressToString(sensors18B20[i])); 
+                            client.print(F("\",\"temp\":")); client.print(ds18b20Temps[i], 2);
+                            client.print(F("}")); client.print(i < DS18B20count - 1 ? F(",") : F("],"));
+                        }
+                    } else {
+                    client.print(F("],"));   
                     }
-
                     // Print pulse counts and configuration values
                     client.print(F("\"pulseCounts\":[")); client.print(pulse1); client.print(F(",")); client.print(pulse2); client.print(F(",")); client.print(pulse3); client.print(F("],"));
                     client.print(F("\"oneWireCycle\":")); client.print(oneWireCycle); client.print(F(","));
@@ -618,18 +624,24 @@ void handleWebServer() {
 
                     // Print DS2438 aliases
                     client.print(F("\"alias_ds2438\":[")); 
-                    for (int i = 0; i < DS2438count; i++) {
-                        client.print(F("\"")); client.print(urlDecode(String(aliasDS2438[i]))); client.print(F("\""));
-                        client.print(i < DS2438count - 1 ? F(",") : F("],"));
+                    if (DS2438count > 0) {
+                        for (int i = 0; i < DS2438count; i++) {
+                            client.print(F("\"")); client.print(urlDecode(String(aliasDS2438[i]))); client.print(F("\""));
+                            client.print(i < DS2438count - 1 ? F(",") : F("],"));
+                        }
+                    } else {
+                    client.print(F("],"));   
                     }
-
                     // Print DS18B20 aliases
                     client.print(F("\"alias_ds18b20\":[")); 
-                    for (int i = 0; i < DS18B20count; i++) {
-                        client.print(F("\"")); client.print(urlDecode(String(aliasDS18B20[i]))); client.print(F("\""));
-                        client.print(i < DS18B20count - 1 ? F(",") : F("]"));
+                    if (DS18B20count > 0) {
+                        for (int i = 0; i < DS18B20count; i++) {
+                            client.print(F("\"")); client.print(urlDecode(String(aliasDS18B20[i]))); client.print(F("\""));
+                            client.print(i < DS18B20count - 1 ? F(",") : F("]"));
+                        }
+                    } else {
+                    client.print(F("],"));   
                     }
-
                     // Close JSON object
                     client.println(F("}"));
                 } else if (request.indexOf("GET /info") != -1) {
@@ -1014,6 +1026,7 @@ void handleWebServer() {
                                         "<input type='button' value='Reboot' onclick='if(confirm(\"Po stisku tlačítka reset dojde k resetu modulu. Pokračovat?\")) sendCommand(\"reset\",1)'>"
                                         "</div><h2>Railduino ")); client.print(ver, 1); client.println(F(" Control Panel</h2>"));
 
+                        
                         // First row: Basic Info and Settings
                         client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
                                         "<h3>Basic Information</h3><table class='basic-info-table'>"
@@ -1026,22 +1039,29 @@ void handleWebServer() {
                             client.print(mac[i], HEX);
                             if (i < 5) client.print(F(":"));
                         }
-                        client.println(F("</td></tr>"
-                                        "<tr><td>Description</td><td><input type='text' maxlength='20' value='")); 
+                        client.print(F("</td></tr><tr><td>Description</td><td><input type='text' maxlength='20' value='")); 
                         client.print(urlDecode(String(description))); 
-                        client.println(F("' onchange='fetch(\"/command?description=\"+encodeURIComponent(this.value))'></td></tr>"
-                                        "<tr><td>Serial Number</td><td><input type='text' id='serialNumber' maxlength='20' onchange='sendCommand(\"serialNumber\",this.value)'></td></tr>"
-                                        "</table></td><td width='50%'>"
-                                        "<h3>Other settings</h3><table class='other-settings-table'>"
-                                        "<tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' style='width:80px;' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr>"
-                                        "<tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' style='width:80px;' onchange='sendCommand(\"anaInputCycle\",this.value)'> ms</td></tr>"
-                                        "<tr><td>Pulses Send Cycle</td><td><input type='number' id='pulseSendCycle' min='2000' style='width:80px;' onchange='sendCommand(\"pulseSendCycle\",this.value)'> ms</td></tr>"
-                                        "<tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='2000' max='60000' style='width:80px;' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr>"
-                                        "<tr><td>Pulses Sensing (DI 10,11,12)</td><td><select id='pulseOn' onchange='sendCommand(\"pulseOn\",this.value)'>"
-                                        "<option value='0' selected>Off</option><option value='1'>On</option></select></td></tr>"
-                                        "<tr><td>Serial Debug (115200 Bd)</td><td><select id='debugEnabled' onchange='sendCommand(\"debugEnabled\",this.value)'>"
-                                        "<option value='0' selected>Off</option><option value='1'>On</option></select></td></tr>"
-                                        "</table></td></tr></table></div>"));
+                        client.print(F("' onchange='fetch(\"/command?description=\"+encodeURIComponent(this.value))'></td></tr><tr><td>Serial Number</td><td><input type='text' id='serialNumber' maxlength='20' value='"));
+                        client.print(urlDecode(String(serialNumber)));
+                        client.print(F("' onchange='sendCommand(\"serialNumber\",this.value)'></td></tr></table></td><td width='50%'><h3>Other settings</h3><table class='other-settings-table'><tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' style='width:80px;' value='"));
+                        client.print(String(oneWireCycle));
+                        client.print(F("' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr><tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' style='width:80px;' value='"));
+                        client.print(String(anaInputCycle));
+                        client.print(F("' onchange='sendCommand(\"anaInputCycle\",this.value)'> ms</td></tr><tr><td>Pulses Send Cycle</td><td><input type='number' id='pulseSendCycle' min='2000' style='width:80px;' value='"));
+                        client.print(String(pulseSendCycle));
+                        client.print(F("' onchange='sendCommand(\"pulseSendCycle\",this.value)'> ms</td></tr><tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='2000' max='60000' style='width:80px;' value='"));
+                        client.print(String(checkInterval));
+                        client.print(F("' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr><tr><td>Pulses Sensing (DI 10,11,12)</td><td><select id='pulseOn' onchange='sendCommand(\"pulseOn\",this.value)'>"));
+                        client.print(F("<option value='0' "));
+                        if (!pulseOn) client.print(F("selected"));
+                        client.print(F(">Off</option><option value='1' "));
+                        if (pulseOn) client.print(F("selected"));
+                        client.print(F(">On</option></select></td></tr><tr><td>Serial Debug (115200 Bd)</td><td><select id='debugEnabled' onchange='sendCommand(\"debugEnabled\",this.value)'>"));
+                        client.print(F("<option value='0' "));
+                        if (!debugEnabled) client.print(F("selected"));
+                        client.print(F(">Off</option><option value='1' "));
+                        if (debugEnabled) client.print(F("selected"));
+                        client.print(F(">On</option></select></td></tr></table></td></tr></table></div>"));
 
                         // Second row: Relay Status
                         client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
@@ -1205,7 +1225,7 @@ void handleWebServer() {
 // Initialize the device
 void setup() {
     Serial.begin(115200);
-    dbgln("Railduino firmware version: " + String(ver));
+    dbgln("Railduino hardware version: " + String(ver,1));
 
     // Generic pin and command initialization
     auto initPins = [](int count, const int* pins, const char* cmdPrefix, String* onCmds, String* offCmds, String* pwmCmds) {

@@ -20,6 +20,7 @@ const char docsContentHeader[] PROGMEM = R"=====(
     <title>Railduino Documentation</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 14px; margin: 20px; }
+        .container { width: 1100px; margin: 0 auto; position: relative; }
         h2, h3 { font-family: Arial, sans-serif; }
         pre { background: #f4f4f4; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; }
         a { color: #0066cc; text-decoration: none; }
@@ -27,6 +28,7 @@ const char docsContentHeader[] PROGMEM = R"=====(
     </style>
 </head>
 <body>
+    <div class='container'>
     <h2>Railduino Firmware Documentation</h2>
     <p><a href='/'>Back to Control Panel</a></p>
 )=====";
@@ -176,7 +178,7 @@ EthernetClient testClient; // Client pro TCP test připojení
 #define oneWireVsensByte 21 // DS2438 Vsens voltage (posunuto)
 #define oneWireDS18B20Byte 47 // DS18B20 temperature (posunuto)
 
-bool debugEnabled = false;
+bool debugEnabled = true;
 bool serialLocked = false;
 
 // Buffers for receiving and sending UDP messages
@@ -196,7 +198,7 @@ unsigned long oneWireSubCycle = 2000; // Sub-cycle for 1-Wire (ms)
 unsigned long anaInputCycle = 10000;  // Cycle for analog inputs (ms)
 unsigned long lastCheckTime = 0; // Last connection check time
 unsigned long checkInterval = 10000; // Connection check interval (ms)
-unsigned long pulseSendCycle = 2000; // Cycle for sending pulse counts (ms)
+unsigned long pulseSendCycle = 10000; // Cycle for sending pulse counts (ms)
 
 bool pulseOn = false; // Flag for pulse sensing activation (default off)
 int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19
@@ -325,6 +327,7 @@ void Timer::sleep(unsigned long sleepTimeMs) {
 // Timer instances for various tasks
 Timer statusLedTimerOn; // Timer for status LED on state
 Timer statusLedTimerOff; // Timer for status LED off state
+Timer checkEthernetTimer; // Timer for periodic check of LAN connection
 Timer oneWireTimer; // Timer for 1-Wire cycle
 Timer oneWireSubTimer; // Timer for 1-Wire sub-cycle
 Timer analogTimer; // Timer for reading analog inputs
@@ -642,6 +645,8 @@ void handleWebServer() {
                     printProgmemString(client, docsContentModbus);
                     printProgmemString(client, docsContentRegisterMap);
                     printProgmemString(client, docsContentFooter);
+                    client.println(F("</div>"));
+                    client.println(F("</body></html>"));
                 } else if (request.indexOf("GET /command?") != -1) {
                     // Send HTTP response
                     client.println(F("HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\nOK"));
@@ -757,7 +762,7 @@ void handleWebServer() {
                     // Update pulse send cycle
                     if (request.indexOf(F("pulseSendCycle=")) != -1) {
                         value = parseParam(request, F("pulseSendCycle="), startIdx, endIdx);
-                        pulseSendCycle = max(value.toInt(), 1000);
+                        pulseSendCycle = max(value.toInt(), 5000);
                         EEPROM.put(EEPROM_PULSECYCLE, pulseSendCycle);
                         if (pulseOn) pulseTimer.sleep(pulseSendCycle);
                     }
@@ -766,8 +771,9 @@ void handleWebServer() {
                     if (request.indexOf(F("checkInterval=")) != -1) {
                         value = parseParam(request, F("checkInterval="), startIdx, endIdx);
                         long val = value.toInt();
-                        checkInterval = (val >= 1000 && val <= 60000) ? val : 10000;
+                        checkInterval = (val >= 2000 && val <= 60000) ? val : 10000;
                         EEPROM.put(EEPROM_CHECKINTERVAL, checkInterval);
+                        checkEthernetTimer.sleep(checkInterval);
                     }
 
                     // Update debug enable state
@@ -1030,9 +1036,7 @@ void handleWebServer() {
                                         "<tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' style='width:80px;' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr>"
                                         "<tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' style='width:80px;' onchange='sendCommand(\"anaInputCycle\",this.value)'> ms</td></tr>"
                                         "<tr><td>Pulses Send Cycle</td><td><input type='number' id='pulseSendCycle' min='2000' style='width:80px;' onchange='sendCommand(\"pulseSendCycle\",this.value)'> ms</td></tr>"
-                                        "<tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='1000' max='60000' style='width:80px;' value=")); 
-                        client.print(checkInterval); 
-                        client.println(F(" onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr>"
+                                        "<tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='2000' max='60000' style='width:80px;' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr>"
                                         "<tr><td>Pulses Sensing (DI 10,11,12)</td><td><select id='pulseOn' onchange='sendCommand(\"pulseOn\",this.value)'>"
                                         "<option value='0' selected>Off</option><option value='1'>On</option></select></td></tr>"
                                         "<tr><td>Serial Debug (115200 Bd)</td><td><select id='debugEnabled' onchange='sendCommand(\"debugEnabled\",this.value)'>"
@@ -1200,315 +1204,168 @@ void handleWebServer() {
 
 // Initialize the device
 void setup() {
-    Serial.begin(115200); // Initialize serial communication
-    dbg("Railduino firmware version: ");
-    dbgln(String(ver));
+    Serial.begin(115200);
+    dbgln("Railduino firmware version: " + String(ver));
 
-    // Initialize digital inputs
+    // Generic pin and command initialization
+    auto initPins = [](int count, const int* pins, const char* cmdPrefix, String* onCmds, String* offCmds, String* pwmCmds) {
+        for (int i = 0; i < count; i++) {
+            pinMode(pins[i], OUTPUT);
+            if (onCmds) onCmds[i] = String(cmdPrefix) + (i + 1) + " on";
+            if (offCmds) offCmds[i] = String(cmdPrefix) + (i + 1) + " off";
+            if (pwmCmds) pwmCmds[i] = String(cmdPrefix) + (i + 1) + "_pwm";
+            digitalWrite(pins[i], LOW);
+        }
+    };
+
+    // Initialize pins
     for (int i = 0; i < numOfDigInputs; i++) {
         pinMode(inputPins[i], INPUT);
-        inputStatus[i] = 1; // Default state
-        inputStatusNew[i] = 0; // New state for debouncing
+        inputStatus[i] = 1;
+        inputStatusNew[i] = 0;
     }
+    initPins(numOfRelays, relayPins, relayStr.c_str(), relayOnCommands, relayOffCommands, nullptr);
+    initPins(numOfHSSwitches, HSSwitchPins, HSSwitchStr.c_str(), HSSwitchOnCommands, HSSwitchOffCommands, HSSwitchPWMCommands);
+    initPins(numOfLSSwitches, LSSwitchPins, LSSwitchStr.c_str(), LSSwitchOnCommands, LSSwitchOffCommands, LSSwitchPWMCommands);
+    initPins(numOfAnaOuts, anaOutPins, anaOutStr.c_str(), anaOutCommand, nullptr, nullptr);
+    for (int i = 0; i < numOfAnaInputs; i++) pinMode(analogPins[i], INPUT);
+    for (int i = 0; i < numOfLedPins; i++) pinMode(ledPins[i], OUTPUT);
 
-    // Initialize relays
-    for (int i = 0; i < numOfRelays; i++) {
-        pinMode(relayPins[i], OUTPUT);
-        relayOnCommands[i] = relayStr + String(i + 1, DEC) + " on"; // Command for turning on
-        relayOffCommands[i] = relayStr + String(i + 1, DEC) + " off"; // Command for turning off
-        setRelay(i, 0); // Turn off relay
-    }
-
-    // Initialize High-Side switches
-    for (int i = 0; i < numOfHSSwitches; i++) {
-        pinMode(HSSwitchPins[i], OUTPUT);
-        HSSwitchOnCommands[i] = HSSwitchStr + String(i + 1, DEC) + " on"; // Command for turning on
-        HSSwitchOffCommands[i] = HSSwitchStr + String(i + 1, DEC) + " off"; // Command for turning off
-        HSSwitchPWMCommands[i] = HSSwitchStr + String(i + 1, DEC) + "_pwm"; // Např. "ho1_pwm"
-        setHSSwitch(i, 0); // Turn off HSS
-    }
-
-    // Initialize Low-Side switches
-    for (int i = 0; i < numOfLSSwitches; i++) {
-        pinMode(LSSwitchPins[i], OUTPUT);
-        LSSwitchOnCommands[i] = LSSwitchStr + String(i + 1, DEC) + " on"; // Command for turning on
-        LSSwitchOffCommands[i] = LSSwitchStr + String(i + 1, DEC) + " off"; // Command for turning off
-        LSSwitchPWMCommands[i] = LSSwitchStr + String(i + 1, DEC) + "_pwm"; // Např. "lo1_pwm"
-        setLSSwitch(i, 0); // Turn off LSS
-    }
-
-    // Initialize analog outputs
-    for (int i = 0; i < numOfAnaOuts; i++) {
-        pinMode(anaOutPins[i], OUTPUT);
-        anaOutCommand[i] = anaOutStr + String(i + 1, DEC); // Command for analog output
-        setAnaOut(i, 0); // Set to zero
-    }
-
-    // Initialize analog inputs
-    for (int i = 0; i < numOfAnaInputs; i++) {
-        pinMode(analogPins[i], INPUT);
-    }
-
-    // Initialize LEDs
-    for (int i = 0; i < numOfLedPins; i++) {
-        pinMode(ledPins[i], OUTPUT);
-    }
-
+     // Initialize EEPROM variables with validation
+    auto initEEPROM = [](int addr, bool& var, bool defaultVal) {
+        EEPROM.get(addr, var);
+        if (var != 0 && var != 1) {
+            var = defaultVal;
+            EEPROM.put(addr, var);
+        }
+    };
+    auto initEEPROMUL = [](int addr, unsigned long& var, unsigned long defaultVal) {
+        EEPROM.get(addr, var);
+        if (var == 0 || var == 0xFFFFFFFF) { // Check for invalid values
+            var = defaultVal;
+            EEPROM.put(addr, var);
+        }
+    };
+    
     // Set up timers
     statusLedTimerOn.sleep(statusLedTimeOn);
     statusLedTimerOff.sleep(statusLedTimeOff);
-
-    EEPROM.get(EEPROM_SERIALLOCK, serialLocked);
-    if (serialLocked != 0 && serialLocked != 1) {
-        serialLocked = false;
-        EEPROM.put(EEPROM_SERIALLOCK, serialLocked);
-    }
-
-    EEPROM.get(EEPROM_SERIALNUMBER, serialNumber);
-    serialNumber[20] = '\0';
-    if (!isValidAlias(serialNumber)) {
-        strcpy(serialNumber, "");
-        EEPROM.put(EEPROM_SERIALNUMBER, serialNumber);
-    }
-
-    EEPROM.get(EEPROM_DESCRIPTION, description);
-    description[20] = '\0';
-    if (!isValidAlias(description)) {
-        strcpy(description, "");
-        EEPROM.put(EEPROM_DESCRIPTION, description);
-    }
-
-    EEPROM.get(EEPROM_DEBUG, debugEnabled);
-    if (debugEnabled != 0 && debugEnabled != 1) {
-        debugEnabled = false; // Default fallback
-        EEPROM.put(EEPROM_DEBUG, debugEnabled);
-    }
-    if (debugEnabled) {
-        dbgln("Debug enabled at baud rate: " + String(baudRate));
-    }
-
+    bool serialLocked, debugEnabled, pulseOn;
+    unsigned long oneWireCycle;
+    unsigned long pulseSendCycle;
+    unsigned long checkInterval;
+    unsigned long anaInputCycle;
     EEPROM.get(EEPROM_ONEWIRE, oneWireCycle);
-    if (oneWireCycle < 1000 || oneWireCycle > 60000) { 
-        oneWireCycle = 30000;
-        EEPROM.put(EEPROM_ONEWIRE, oneWireCycle);
-    }
-    oneWireTimer.sleep(oneWireCycle);
-
-    EEPROM.get(EEPROM_ANAINPUT, anaInputCycle);
-    if (anaInputCycle < 1000 || anaInputCycle > 60000) {
-        anaInputCycle = 10000;
-        EEPROM.put(EEPROM_ANAINPUT, anaInputCycle);
-    }
-
-    EEPROM.get(EEPROM_PULSEON, pulseOn);
-    if (pulseOn != 0 && pulseOn != 1) {
-        pulseOn = false;
-        EEPROM.put(EEPROM_PULSEON, pulseOn);
-    }
-
     EEPROM.get(EEPROM_PULSECYCLE, pulseSendCycle);
-    if (pulseSendCycle < 1000 || pulseSendCycle > 60000) {
-        pulseSendCycle = 2000;
-        EEPROM.put(EEPROM_PULSECYCLE, pulseSendCycle);
-    }
+    oneWireTimer.sleep(oneWireCycle);
+    pulseTimer.sleep(pulseSendCycle);
+    checkEthernetTimer.sleep(checkInterval);
 
-    EEPROM.get(EEPROM_CHECKINTERVAL, checkInterval);
-    if (debugEnabled) {
-        dbg(F("Načtená hodnota checkInterval z EEPROM: "));
-        dbgln(String(checkInterval));
-    }
-    if (checkInterval < 1000 || checkInterval > 60000 || checkInterval == 0xFFFFFFFF) {
-        checkInterval = 10000; // Výchozí hodnota 10000 ms
-        EEPROM.put(EEPROM_CHECKINTERVAL, checkInterval);
-        if (debugEnabled) {
-            dbg(F("Inicializace checkInterval na: "));
-            dbgln(String(checkInterval));
-        }
-    }
+    initEEPROM(EEPROM_SERIALLOCK, serialLocked, false);
+    initEEPROM(EEPROM_DEBUG, debugEnabled, false);
+    initEEPROM(EEPROM_PULSEON, pulseOn, false);
+    initEEPROMUL(EEPROM_ANAINPUT, anaInputCycle, 10000UL);
+    initEEPROMUL(EEPROM_CHECKINTERVAL, checkInterval, 10000UL);
 
-    for (int i = 0; i < numOfRelays; i++) {
-        EEPROM.get(EEPROM_ALIAS_RELAYS + (i * 21), aliasRelays[i]);
-        aliasRelays[i][20] = '\0';
-        if (!isValidAlias(aliasRelays[i])) {
-            strcpy(aliasRelays[i], "");
-            EEPROM.put(EEPROM_ALIAS_RELAYS + (i * 21), aliasRelays[i]);
+    // Initialize string arrays from EEPROM
+    auto initStringArray = [](char* arr, int count, int baseAddr) {
+        for (int i = 0; i < count; i++) {
+            EEPROM.get(baseAddr + i * 21, arr[i * 21]);
+            arr[i * 21 + 20] = '\0';
+            if (!isValidAlias(arr + i * 21)) {
+                arr[i * 21] = '\0';
+                EEPROM.put(baseAddr + i * 21, arr + i * 21);
+            }
         }
-    }
-    for (int i = 0; i < numOfHSSwitches; i++) {
-        EEPROM.get(EEPROM_ALIAS_HSS + (i * 21), aliasHSS[i]);
-        aliasHSS[i][20] = '\0';
-        if (!isValidAlias(aliasHSS[i])) {
-            strcpy(aliasHSS[i], "");
-            EEPROM.put(EEPROM_ALIAS_HSS + (i * 21), aliasHSS[i]);
+    };
+    auto initEEPROMString = [](int addr, char* var) {
+        EEPROM.get(addr, var);
+        var[20] = '\0';
+        if (!isValidAlias(var)) {
+            var[0] = '\0';
+            EEPROM.put(addr, var);
         }
-    }
-    for (int i = 0; i < numOfLSSwitches; i++) {
-        EEPROM.get(EEPROM_ALIAS_LSS + (i * 21), aliasLSS[i]);
-        aliasLSS[i][20] = '\0';
-        if (!isValidAlias(aliasLSS[i])) {
-            strcpy(aliasLSS[i], "");
-            EEPROM.put(EEPROM_ALIAS_LSS + (i * 21), aliasLSS[i]);
-        }
-    }
-    for (int i = 0; i < numOfDigInputs; i++) {
-        EEPROM.get(EEPROM_ALIAS_DIGINPUTS + (i * 21), aliasDigInputs[i]);
-        aliasDigInputs[i][20] = '\0';
-        if (!isValidAlias(aliasDigInputs[i])) {
-            strcpy(aliasDigInputs[i], "");
-            EEPROM.put(EEPROM_ALIAS_DIGINPUTS + (i * 21), aliasDigInputs[i]);
-        }
-    }
-    for (int i = 0; i < numOfAnaInputs; i++) {
-        EEPROM.get(EEPROM_ALIAS_ANA_INPUTS + (i * 21), aliasAnaInputs[i]);
-        aliasAnaInputs[i][20] = '\0';
-        if (!isValidAlias(aliasAnaInputs[i])) {
-            strcpy(aliasAnaInputs[i], "");
-            EEPROM.put(EEPROM_ALIAS_ANA_INPUTS + (i * 21), aliasAnaInputs[i]);
-        }
-    }
-    for (int i = 0; i < numOfAnaOuts; i++) {
-        EEPROM.get(EEPROM_ALIAS_ANA_OUTS + (i * 21), aliasAnaOuts[i]);
-        aliasAnaOuts[i][20] = '\0';
-        if (!isValidAlias(aliasAnaOuts[i])) {
-            strcpy(aliasAnaOuts[i], "");
-            EEPROM.put(EEPROM_ALIAS_ANA_OUTS + (i * 21), aliasAnaOuts[i]);
-        }
-    }
-    for (int i = 0; i < maxSensors; i++) {
-        EEPROM.get(EEPROM_ALIAS_DS2438 + (i * 21), aliasDS2438[i]);
-        aliasDS2438[i][20] = '\0';
-        if (!isValidAlias(aliasDS2438[i])) {
-            strcpy(aliasDS2438[i], "");
-            EEPROM.put(EEPROM_ALIAS_DS2438 + (i * 21), aliasDS2438[i]);
-        }
-    }
-    for (int i = 0; i < maxSensors; i++) {
-        EEPROM.get(EEPROM_ALIAS_DS18B20 + (i * 21), aliasDS18B20[i]);
-        aliasDS18B20[i][20] = '\0';
-        if (!isValidAlias(aliasDS18B20[i])) {
-            strcpy(aliasDS18B20[i], "");
-            EEPROM.put(EEPROM_ALIAS_DS18B20 + (i * 21), aliasDS18B20[i]);
-        }
-    }
+    };
+    char serialNumber[21], description[21];
+    initEEPROMString(EEPROM_SERIALNUMBER, serialNumber);
+    initEEPROMString(EEPROM_DESCRIPTION, description);
+    initStringArray((char*)aliasRelays, numOfRelays, EEPROM_ALIAS_RELAYS);
+    initStringArray((char*)aliasHSS, numOfHSSwitches, EEPROM_ALIAS_HSS);
+    initStringArray((char*)aliasLSS, numOfLSSwitches, EEPROM_ALIAS_LSS);
+    initStringArray((char*)aliasDigInputs, numOfDigInputs, EEPROM_ALIAS_DIGINPUTS);
+    initStringArray((char*)aliasAnaInputs, numOfAnaInputs, EEPROM_ALIAS_ANA_INPUTS);
+    initStringArray((char*)aliasAnaOuts, numOfAnaOuts, EEPROM_ALIAS_ANA_OUTS);
+    initStringArray((char*)aliasDS2438, maxSensors, EEPROM_ALIAS_DS2438);
+    initStringArray((char*)aliasDS18B20, maxSensors, EEPROM_ALIAS_DS18B20);
 
-    // Inicializační flag pro aliasy (hodnota 0xAA znamená inicializováno)
-    byte initFlag = 0;
+    // Initialize EEPROM if not already done
+    byte initFlag;
     EEPROM.get(EEPROM_INIT_FLAG, initFlag);
-    dbgln("EEPROM init flag: " + String(initFlag, HEX)); // Debug výpis
-
     if (initFlag != 0xAA) {
-        // První spuštění: Inicializuj všechny aliasy na prázdné stringy
-        dbgln("Inicializace EEPROM aliasů na prázdné hodnoty...");
-        char emptyAlias[21] = "";  // Prázdný string s null terminátorem
-        
+        char emptyAlias[21] = "";
         EEPROM.put(EEPROM_SERIALLOCK, false);
-
-        for (int i = 0; i < numOfRelays; i++) {
-            EEPROM.put(EEPROM_ALIAS_RELAYS + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < numOfHSSwitches; i++) {
-            EEPROM.put(EEPROM_ALIAS_HSS + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < numOfLSSwitches; i++) {
-            EEPROM.put(EEPROM_ALIAS_LSS + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < numOfDigInputs; i++) {
-            EEPROM.put(EEPROM_ALIAS_DIGINPUTS + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < numOfAnaInputs; i++) {
-            EEPROM.put(EEPROM_ALIAS_ANA_INPUTS + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < numOfAnaOuts; i++) {
-            EEPROM.put(EEPROM_ALIAS_ANA_OUTS + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < maxSensors; i++) {
-            EEPROM.put(EEPROM_ALIAS_DS2438 + (i * 21), emptyAlias);
-        }
-        for (int i = 0; i < maxSensors; i++) {
-            EEPROM.put(EEPROM_ALIAS_DS18B20 + (i * 21), emptyAlias);
-        }
-        
+        for (int i = 0; i < numOfRelays; i++) EEPROM.put(EEPROM_ALIAS_RELAYS + i * 21, emptyAlias);
+        for (int i = 0; i < numOfHSSwitches; i++) EEPROM.put(EEPROM_ALIAS_HSS + i * 21, emptyAlias);
+        for (int i = 0; i < numOfLSSwitches; i++) EEPROM.put(EEPROM_ALIAS_LSS + i * 21, emptyAlias);
+        for (int i = 0; i < numOfDigInputs; i++) EEPROM.put(EEPROM_ALIAS_DIGINPUTS + i * 21, emptyAlias);
+        for (int i = 0; i < numOfAnaInputs; i++) EEPROM.put(EEPROM_ALIAS_ANA_INPUTS + i * 21, emptyAlias);
+        for (int i = 0; i < numOfAnaOuts; i++) EEPROM.put(EEPROM_ALIAS_ANA_OUTS + i * 21, emptyAlias);
+        for (int i = 0; i < maxSensors; i++) EEPROM.put(EEPROM_ALIAS_DS2438 + i * 21, emptyAlias);
+        for (int i = 0; i < maxSensors; i++) EEPROM.put(EEPROM_ALIAS_DS18B20 + i * 21, emptyAlias);
         EEPROM.put(EEPROM_DESCRIPTION, emptyAlias);
-        EEPROM.put(EEPROM_CHECKINTERVAL, (unsigned long)10000); // Inicializace checkInterval na 10000 ms
-        if (debugEnabled) {
-            dbgln(F("Inicializace EEPROM_CHECKINTERVAL na 10000 ms při prvním spuštění."));
-        }
+        EEPROM.put(EEPROM_CHECKINTERVAL, 10000UL);
+        EEPROM.put(EEPROM_ONEWIRE, 30000UL);
+        EEPROM.put(EEPROM_ANAINPUT, 10000UL);
+        EEPROM.put(EEPROM_PULSECYCLE, 2000UL);
         initFlag = 0xAA;
         EEPROM.put(EEPROM_INIT_FLAG, initFlag);
-    }
+    } 
 
+    // Attach interrupts for pulse counting
     if (pulseOn) {
         attachInterrupt(digitalPinToInterrupt(21), [](){pulse1++;}, FALLING);
         attachInterrupt(digitalPinToInterrupt(20), [](){pulse2++;}, FALLING);
         attachInterrupt(digitalPinToInterrupt(19), [](){pulse3++;}, FALLING);
-        pulseTimer.sleep(pulseSendCycle);
     }
 
     // Read board address from DIP switches
     for (int i = 0; i < 4; i++) {
         pinMode(dipSwitchPins[i], INPUT);
-        if (!digitalRead(dipSwitchPins[i])) { boardAddress |= (1 << i); }
+        if (!digitalRead(dipSwitchPins[i])) boardAddress |= (1 << i);
     }
+    boardAddressStr = String(boardAddress);
+    boardAddressRailStr = railStr + boardAddressStr;
 
-    // Nová logika na základě detekce ethernet shieldu:
-    if (ethShieldDetected()) { ethernetOK = true; dbgln("Ethernet shield detekován.");
-    } else { ethernetOK = false; dbgln("Ethernet shield NENÍ detekován.");    }
- 
-       // Print communication parameters
-    dbg(String(baudRate));
-    dbg(" Bd, Tx Delay: ");
-    dbg(String(serial3TxDelay));
-    dbg(" ms, Timeout: ");
-    dbg(String(serial3TimeOut));
-    dbgln(" ms");
-
-    // Set board address strings
-    boardAddressStr = String(boardAddress); 
-    boardAddressRailStr = railStr + String(boardAddress);
-
-    // Initialize Ethernet if enabled
+    // Initialize Ethernet
+    ethernetOK = ethShieldDetected();
+    dbgln(ethernetOK ? "Ethernet shield detected" : "Ethernet shield NOT detected");
     if (ethernetOK) {
-        mac[5] = (0xED + boardAddress); // Adjust MAC address based on board address
-        while (!dhcpSuccess) {
+        mac[5] = 0xED + boardAddress;
+        while (!Ethernet.begin(mac)) {
             dbgln("Attempting to obtain IP address...");
             digitalWrite(ledPins[0], HIGH);
-            if (Ethernet.begin(mac) != 0) {
-                dhcpSuccess = true;
-            } else {
-                delay(1000);
-            }
+            delay(1000);
             digitalWrite(ledPins[0], LOW);
         }
-        udpRecv.begin(listenPort); // Start UDP receiver
-        udpSend.begin(sendPort);   // Start UDP sender
-        server.begin(); // Start HTTP server
-        dbg("IP address: ");
-        printIPAddress(Ethernet.localIP()); // Print local IP
-        dbgln("");
-        dhcpServer = Ethernet.gatewayIP(); // Store gateway IP
-        dbg("Gateway (DHCP server): ");
-        printIPAddress(dhcpServer); // Print gateway IP
-        dbgln("");
+        udpRecv.begin(listenPort);
+        udpSend.begin(sendPort);
+        server.begin();
+        dbgln("IP address: " + ipToString(Ethernet.localIP()));
+        dhcpServer = Ethernet.gatewayIP();
+        dbgln("Gateway (DHCP): " + ipToString(dhcpServer));
     }
 
-    // Initialize MODBUS data
+    // Initialize MODBUS and RS485
     memset(Mb.MbData, 0, sizeof(Mb.MbData));
-    modbus_configure(&Serial3, baudRate, SERIAL_8N1, boardAddress, serial3TxControl, sizeof(Mb.MbData), Mb.MbData); 
-
-    // Initialize RS485 communication
+    modbus_configure(&Serial3, baudRate, SERIAL_8N1, boardAddress, serial3TxControl, sizeof(Mb.MbData), Mb.MbData);
     Serial3.begin(baudRate);
     Serial3.setTimeout(serial3TimeOut);
     pinMode(serial3TxControl, OUTPUT);
-    digitalWrite(serial3TxControl, 0);
+    digitalWrite(serial3TxControl, LOW);
 
-    // Print board address
-    dbg("Physical address: ");
-    dbgln(boardAddressStr);
-
-    // Search for 1-Wire sensors
-    lookUpSensors(); 
-
-    // Enable watchdog timer (8 seconds)
+    // Final initializations
+    dbgln("Physical address: " + boardAddressStr);
+    lookUpSensors();
     wdt_enable(WDTO_8S);
 }
 
@@ -1517,16 +1374,13 @@ void loop() {
     wdt_reset(); // Reset watchdog timer
 
     // Check Ethernet connection periodically
-    unsigned long currentTime = millis();
-    if (currentTime - lastCheckTime >= checkInterval) {
-        lastCheckTime = currentTime;
+    if (checkEthernetTimer.isOver()) {
         checkEthernet();
+        checkEthernetTimer.sleep(checkInterval);
     }
 
     // Handle webserver requests if Ethernet is enabled
-    if (ethernetOK) {
-        handleWebServer();
-    }
+    if (ethernetOK) {handleWebServer();}
 
     // Read digital inputs
     readDigInputs();
@@ -1550,9 +1404,7 @@ void loop() {
     modbus_update();
 
     // Send pulse packet if pulse sensing is enabled
-    if (pulseOn) {
-        sendPulsePacket();
-    }
+    if (pulseOn) {sendPulsePacket();}
 }
 
 bool isValidAlias(const char* alias) {
@@ -1612,11 +1464,8 @@ void IPrenew() {
 }
 
 // Print IP address
-void printIPAddress(IPAddress ip) {
-    for (byte thisByte = 0; thisByte < 4; thisByte++) {
-        dbg(String(ip[thisByte]));
-        if (thisByte < 3) dbg(".");
-    }
+String ipToString(IPAddress ip) {
+    return String(ip[0]) + "." + ip[1] + "." + ip[2] + "." + ip[3];
 }
 
 // Control status LED

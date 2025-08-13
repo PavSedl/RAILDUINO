@@ -201,6 +201,7 @@ unsigned long pulseSendCycle = 10000; // Cycle for sending pulse counts (ms)
 
 bool pulseOn = false; // Flag for pulse sensing activation (default off)
 int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19
+int sentPulse1 = 0, sentPulse2 = 0, sentPulse3 = 0;
 #define statusLedTimeOn 50   // Status LED on time in milliseconds
 #define statusLedTimeOff 950 // Status LED off time in milliseconds
 #define commLedTimeOn 50     // Communication LED on time in milliseconds
@@ -504,7 +505,7 @@ void handleWebServer() {
                     client.print(F("],"));   
                     }
                     // Print pulse counts and configuration values
-                    client.print(F("\"pulseCounts\":[")); client.print(pulse1); client.print(F(",")); client.print(pulse2); client.print(F(",")); client.print(pulse3); client.print(F("],"));
+                    client.print(F("\"pulseCounts\":[")); client.print(sentPulse1); client.print(F(",")); client.print(sentPulse2); client.print(F(",")); client.print(sentPulse3); client.print(F("],"));
                     client.print(F("\"oneWireCycle\":")); client.print(oneWireCycle); client.print(F(","));
                     client.print(F("\"anaInputCycle\":")); client.print(anaInputCycle); client.print(F(","));
                     client.print(F("\"pulseOn\":")); client.print(pulseOn ? 1 : 0); client.print(F(","));
@@ -1021,7 +1022,7 @@ void handleWebServer() {
                                         "let checkInterval=document.getElementById('checkInterval');if(checkInterval){"
                                         "checkInterval.value=data.checkInterval||10000;"
                                         "if(updateIntervalId)clearInterval(updateIntervalId);"
-                                        "updateIntervalId=setInterval(updateStatus,data.checkInterval||10000);}"));
+                                        "updateIntervalId=setInterval(updateStatus,3000);}"));
                         client.print(F("for(let i=0;i<")); client.print(numOfAnaOuts); client.println(F(";i++){"
                                         "let anaOut=document.getElementById('anaOut_'+(i+1));if(anaOut)anaOut.value=data.anaOuts[i]||0;"
                                         "let anaOutVoltage=document.getElementById('anaOutVoltage'+(i+1));"
@@ -1221,8 +1222,7 @@ void handleWebServer() {
                                         "<td width='50%'><h3 class='dig-inputs-title'>Digital Inputs 1-12</h3><table class='inner' id='digInputsTable1'><tbody>"));
                         for (int i = 0; i < 12; i++) {
                             client.print(F("<tr><td>DI ")); client.print(i + 1); client.print(F("</td><td id='di_status")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(1 - inputStatus[i]); client.print(F("</td><td>"
-                                          "<input type='text' id='alias_digInput_")); client.print(i + 1); 
+                            client.print(i + 1); client.print(F("'>")); client.print(1 - inputStatus[i]); client.print(F("</td><td><input type='text' id='alias_digInput_")); client.print(i + 1); 
                             client.print(F("' name='alias_digInput_")); client.print(i + 1); client.print(F("' value='")); 
                             client.print(urlDecode(String(aliasDigInputs[i]))); client.print(F("' onchange='sendCommand(\"alias_digInput_")); 
                             client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
@@ -1231,8 +1231,7 @@ void handleWebServer() {
                         client.println(F("</tbody></table></td><td width='50%'><h3 class='dig-inputs-title'>Digital Inputs 13-24</h3><table class='inner' id='digInputsTable2'><tbody>"));
                         for (int i = 12; i < 24; i++) {
                             client.print(F("<tr><td>DI ")); client.print(i + 1); client.print(F("</td><td id='di_status")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(1 - inputStatus[i]); client.print(F("</td><td>"
-                                          "<input type='text' id='alias_digInput_")); client.print(i + 1); 
+                            client.print(i + 1); client.print(F("'>")); client.print(1 - inputStatus[i]); client.print(F("</td><td><input type='text' id='alias_digInput_")); client.print(i + 1); 
                             client.print(F("' name='alias_digInput_")); client.print(i + 1); client.print(F("' value='")); 
                             client.print(urlDecode(String(aliasDigInputs[i]))); client.print(F("' onchange='sendCommand(\"alias_digInput_")); 
                             client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
@@ -1605,9 +1604,12 @@ void sendPulsePacket() {
         return;
     }
     pulseTimer.sleep(pulseSendCycle);
-    sendMsg("di10 " + String(pulse1));
-    sendMsg("di11 " + String(pulse2));
-    sendMsg("di12 " + String(pulse3));
+    sentPulse1 = pulse1;
+    sentPulse2 = pulse2;
+    sentPulse3 = pulse3;
+    sendMsg("di10 " + String(sentPulse1));
+    sendMsg("di11 " + String(sentPulse2));
+    sendMsg("di12 " + String(sentPulse3));
     pulse1 = 0;
     pulse2 = 0;
     pulse3 = 0;

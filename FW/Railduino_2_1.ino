@@ -178,9 +178,6 @@ EthernetClient testClient; // Client pro TCP test připojení
 #define oneWireVsensByte 21 // DS2438 Vsens voltage
 #define oneWireDS18B20Byte 47 // DS18B20 temperature
 
-bool debugEnabled = true;
-bool serialLocked = false;
-
 // Buffers for receiving and sending UDP messages
 #define inputPacketBufferSize UDP_TX_PACKET_MAX_SIZE
 char inputPacketBuffer[UDP_TX_PACKET_MAX_SIZE];
@@ -199,9 +196,20 @@ unsigned long anaInputCycle = 10000;  // Cycle for analog inputs (ms)
 unsigned long checkInterval = 10000; // Connection check interval (ms)
 unsigned long pulseSendCycle = 10000; // Cycle for sending pulse counts (ms)
 
-bool pulseOn = false; // Flag for pulse sensing activation (default off)
+int boardAddress = 0; // Board address (from DIP switches)
+long baudRate = 115200; // Serial communication baud rate
+int serial3TxDelay = 10; // Delay for RS485 transmission
+int serial3TimeOut = 20; // Timeout for serial communication
+int resetPin = 4; // Pin for Ethernet module reset
+
+bool ethernetOK = false;
+bool dhcpSuccess = false; // Flag for successful DHCP IP acquisition
+bool serialLocked = false;
+bool debugEnabled = false;
+bool pulseOn = false;
 int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19
 int sentPulse1 = 0, sentPulse2 = 0, sentPulse3 = 0;
+
 #define statusLedTimeOn 50   // Status LED on time in milliseconds
 #define statusLedTimeOff 950 // Status LED off time in milliseconds
 #define commLedTimeOn 50     // Communication LED on time in milliseconds
@@ -247,14 +255,6 @@ char aliasDS18B20[maxSensors][41];
 
 // List of allowed Czech diacritical characters in UTF-8 (two-byte sequences)
 static const unsigned char czech_chars[][2] = {{0xC3,0xA1},{0xC4,0x8D},{0xC4,0x8F},{0xC3,0xA9},{0xC4,0x9B},{0xC3,0xAD},{0xC5,0x88},{0xC3,0xB3},{0xC5,0x99},{0xC5,0xA1},{0xC5,0xA5},{0xC3,0xBA},{0xC5,0xAF},{0xC3,0xBD},{0xC5,0xBE},{0xC3,0x81},{0xC4,0x8C},{0xC4,0x8E},{0xC3,0x89},{0xC4,0x9A},{0xC3,0x8D},{0xC5,0x87},{0xC3,0x93},{0xC5,0x98},{0xC5,0xA0},{0xC5,0xA4},{0xC3,0x9A},{0xC5,0xAE},{0xC3,0x9D},{0xC5,0xBD}}; 
-
-int boardAddress = 0; // Board address (from DIP switches)
-bool ethernetOK;
-long baudRate = 115200; // Serial communication baud rate
-int serial3TxDelay = 10; // Delay for RS485 transmission
-int serial3TimeOut = 20; // Timeout for serial communication
-int resetPin = 4; // Pin for Ethernet module reset
-bool dhcpSuccess = false; // Flag for successful DHCP IP acquisition
 
 String boardAddressStr; // String representation of board address
 String boardAddressRailStr; // Prefix for messages (e.g., "rail1")
@@ -328,7 +328,6 @@ bool ethShieldDetected() {
 
 // Resets Ethernet module, attempts DHCP, triggers watchdog if failed
 void resetEthernetModule() { 
-    dbgln("[" + String(millis()) + "] Resetting Ethernet module..."); 
     pinMode(resetPin, OUTPUT); 
     digitalWrite(resetPin, LOW); 
     delay(50); 
@@ -336,12 +335,12 @@ void resetEthernetModule() {
     delay(200); 
     unsigned long startTime = millis(); 
     bool dhcpAttempt = false; 
-    while (millis() - startTime < 100) { 
+    while (millis() - startTime < 5000) { 
         if (Ethernet.begin(mac) != 0 && Ethernet.localIP()[0] != 0) { 
             dhcpAttempt = true; 
             break; 
         } 
-        delay(10); 
+        delay(100); 
     } 
     dhcpSuccess = dhcpAttempt ? true : false; 
     if (!dhcpAttempt) { 
@@ -352,14 +351,6 @@ void resetEthernetModule() {
 
 // Check the Ethernet module
 void checkEthernet() {
-    if (!dhcpSuccess) return;
-    IPAddress currentIP = Ethernet.localIP();
-    if (currentIP[0] == 0 && currentIP[1] == 0 && currentIP[2] == 0 && currentIP[3] == 0) {
-        dbgln(F("Ethernet connection lost, resetting."));
-        dhcpSuccess = false;
-        resetEthernetModule();
-        return;
-    }
     udpRecv.stop();
     udpSend.stop();
     bool connected = testClient.connected() || testClient.connect(dhcpServer, 53);
@@ -369,6 +360,8 @@ void checkEthernet() {
         testClient.stop();
         resetEthernetModule();
         return;
+    } else {
+      dbgln(F("Ethernet connection OK"));
     }
     testClient.stop();
     udpRecv.begin(listenPort);
@@ -1366,7 +1359,6 @@ void setup() {
     // Set up timers
     statusLedTimerOn.sleep(statusLedTimeOn);
     statusLedTimerOff.sleep(statusLedTimeOff);
-    bool serialLocked, debugEnabled, pulseOn;
     oneWireTimer.sleep(oneWireCycle);
     pulseTimer.sleep(pulseSendCycle);
     checkEthernetTimer.sleep(checkInterval);
@@ -1459,12 +1451,6 @@ void setup() {
     EEPROM.get(EEPROM_DEBUG, debugEnabled);
     EEPROM.get(EEPROM_SERIALLOCK, serialLocked);
 
-    // Aktualizace časovačů
-    oneWireTimer.sleep(oneWireCycle);
-    analogTimer.sleep(anaInputCycle);
-    pulseTimer.sleep(pulseSendCycle);
-    checkEthernetTimer.sleep(checkInterval);
-
     // Úprava inicializace EEPROM při prvním spuštění
     EEPROM.get(EEPROM_INIT_FLAG, initFlag);
 
@@ -1514,7 +1500,6 @@ void setup() {
             dbgln("Attempting to obtain IP address...");
             digitalWrite(ledPins[0], HIGH);
             delay(1000);
-            digitalWrite(ledPins[0], LOW);
         }
         udpRecv.begin(listenPort);
         udpSend.begin(sendPort);
@@ -1522,6 +1507,7 @@ void setup() {
         dbgln("IP address: " + ipToString(Ethernet.localIP()));
         dhcpServer = Ethernet.gatewayIP();
         dbgln("Gateway (DHCP): " + ipToString(dhcpServer));
+        digitalWrite(ledPins[0], LOW);
     }
 
     // Initialize MODBUS and RS485

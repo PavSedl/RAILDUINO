@@ -2,14 +2,14 @@
 
 >![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
 ><p>A warning sign, for safe use these instructions must be followed</p>
->![CE Sign](media/CE_sign.png){ style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+>![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
 ><p>CE marking, certifies compliance of the product with the legal requirements</p>
->![wee_symbol](media/weee_symbol.png){ style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+>![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
 ><p>The product does not belong to municipal waste and is subject to separate collection</p>
 
 ### 1.2 Safety warnings
 
->![](media/warning_sign.jpeg){ style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
+>![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
 ><div style="text-align: justify;">
 >To prevent electrical shock and fire,
 >follow these safety instructions and guidelines. Do not exceed the
@@ -22,7 +22,7 @@
 >it is being installed. Repairs of the module can be carried out only by
 >the manufacturer.
 </div></br><div style="text-align: justify;">
->![](media/warning_sign.jpeg){ style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
+>![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
 >In an applications with the connection
 >of main voltage of 230V to the output terminals of the device a
 >sufficient distance or insulation from the wires, clamps and enclosing
@@ -105,7 +105,7 @@ improper use or normal wear and tear.
 </div>
 
 ### 1.9 Termination of operation and disposal
-![](media/weee_symbol.png){ style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
+![](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
 <p style="text-align: justify;">
 During termination of operation, the
 dismantling and disposal are possible to execute only after the power

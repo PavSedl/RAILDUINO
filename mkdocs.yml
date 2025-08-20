@@ -1,0 +1,31 @@
+site_name: Railduino 2.1 Documentation
+docs_dir: docs
+site_dir: site
+theme:
+  name: material
+  palette:
+    primary: teal
+  features:
+    - content.code.copy
+    - content.tabs
+    - search.suggest
+nav:
+  - Home: index.md
+  - 1 - General: general.md
+  - 2 - Description: description.md
+  - 3 - Installation: installation.md
+  - 4 - Connection: connection.md
+  - 5 - Modbus: modbus.md
+  - 6 - UDP: udp.md
+  - 7 - Examples - Modbus: modbus_examples.md
+  - 8 - Examples - UDP: udp_examples.md
+plugins:
+  - search
+  - mermaid2
+markdown_extensions:
+  - tables
+  - fenced_code
+  - attr_list
+  - md_in_html
+repo_url: https://github.com/PavSedl/RAILDUINO
+site_url: https://PavSedl.github.io/RAILDUINO

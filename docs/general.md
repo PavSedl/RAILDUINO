@@ -1,50 +1,53 @@
+## GENERAL
+
 ### 1.1 Symbols used
 
->![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-><p>A warning sign, for safe use these instructions must be followed</p>
->![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-><p>CE marking, certifies compliance of the product with the legal requirements</p>
->![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-><p>The product does not belong to municipal waste and is subject to separate collection</p>
+!!!	note ""
+    ![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+    <p>A warning sign, for safe use these instructions must be followed</p>
+    ![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+    <p>CE marking, certifies compliance of the product with the legal requirements</p>
+    ![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+    <p>The product does not belong to municipal waste and is subject to separate collection</p>
 
 ### 1.2 Safety warnings
 
->![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
-><div style="text-align: justify;">
->To prevent electrical shock and fire,
->follow these safety instructions and guidelines. Do not exceed the
->technical parameters and use the device according to the following
->description. Read the instructions carefully before putting the device
->into operation. The device should be installed only by a qualified
->technician. Use of the device in any other way than the way recommended
->by the manufacturer may undermine the protection provided by the device.
->Do not connect the device to the power supply (dangerous voltage) unless
->it is being installed. Repairs of the module can be carried out only by
->the manufacturer.
-></div></br><div style="text-align: justify;">
->![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
->In an applications with the connection
->of main voltage of 230V to the output terminals of the device a
->sufficient distance or insulation from the wires, clamps and enclosing
->against the surroundings must be provided, due to preservation of
->protection against electric shock. Behind the front cover of the
->device there are output terminals, where dangerous voltage can occur.
-></div></br><div style="text-align: justify;">
->In the Czech Republic only a qualified person is allowed to install the
->device (a person min. skilled according to Act No. 250/2021 Coll.
->after familiarization with these instructions. The device must not
->be used otherwise than in accordance with these instructions.
-></div></br><div style="text-align: justify;">
->To prevent risk of electical injury or fire the maximal operation
->parameters of the device must not be exceeded, particularly the range of
->operational temperatures due to heat impact from connected or other
->technological equipment nearby!
-></div></br><div style="text-align: justify;">
->Protect the device from a direct sun light, dust, high temperature,
->mechanical vibrations and impact, from rain and high moisture. In case
->of increased ambient temperature above the mentioned limit a ventilation
->must be ensured.
-></div>
+![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
+<div style="text-align: justify;">
+To prevent electrical shock and fire,
+follow these safety instructions and guidelines. Do not exceed the
+technical parameters and use the device according to the following
+description. Read the instructions carefully before putting the device
+into operation. The device should be installed only by a qualified
+technician. Use of the device in any other way than the way recommended
+by the manufacturer may undermine the protection provided by the device.
+Do not connect the device to the power supply (dangerous voltage) unless
+it is being installed. Repairs of the module can be carried out only by
+the manufacturer.
+</div></br><div style="text-align: justify;">
+![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
+In an applications with the connection
+of main voltage of 230V to the output terminals of the device a
+sufficient distance or insulation from the wires, clamps and enclosing
+against the surroundings must be provided, due to preservation of
+protection against electric shock. Behind the front cover of the
+device there are output terminals, where dangerous voltage can occur.
+</div></br><div style="text-align: justify;">
+In the Czech Republic only a qualified person is allowed to install the
+device (a person min. skilled according to Act No. 250/2021 Coll.
+after familiarization with these instructions. The device must not
+be used otherwise than in accordance with these instructions.
+</div></br><div style="text-align: justify;">
+To prevent risk of electical injury or fire the maximal operation
+parameters of the device must not be exceeded, particularly the range of
+operational temperatures due to heat impact from connected or other
+technological equipment nearby!
+</div></br><div style="text-align: justify;">
+Protect the device from a direct sun light, dust, high temperature,
+mechanical vibrations and impact, from rain and high moisture. In case
+of increased ambient temperature above the mentioned limit a ventilation
+must be ensured.
+</div>
 
 ### 1.3 Delivery and packaging description
 <div style="text-align: justify;">

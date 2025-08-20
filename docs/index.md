@@ -1,10 +1,8 @@
-# RAILDUINO 2.1 #
+# RAILDUINO 2.1
 
-## OPERATING INSTRUCTIONS ##
+## OPERATING INSTRUCTIONS
 
 ![](media/railduino.jpeg){: style="max-height:300px; margin: 20px 0 0 150px;"}  
-
->Content
 
 [1 - General](./general.md)  
 [2 - Description](./description.md)  

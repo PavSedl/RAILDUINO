@@ -1,6 +1,6 @@
 ### 1.1 Symbols used
 
-<img src="media/warning_sign.jpeg" style="float: left; margin: 0 20px 0 0; max-width: 25px;" alt="Warning Sign">
+<img src="warning_sign.jpeg" style="float: left; margin: 0 20px 0 0; max-width: 25px;" alt="Warning Sign">
 <p>A warning sign, for safe use these instructions must be followed</p>
 <img src="../media/CE_sign.png" style="float: left; margin: 0 20px 0 0; max-width: 25px;" alt="CE Sign">
 <p>CE marking, certifies compliance of the product with the legal requirements</p>

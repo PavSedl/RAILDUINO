@@ -31,4 +31,4 @@ extra:
   static_files:
     - media
 repo_url: https://github.com/PavSedl/RAILDUINO
-site_url: https://PavSedl.github.io/RAILDUINO
+site_url: http://localhost:8000/RAILDUINO/docs/

@@ -27,5 +27,8 @@ markdown_extensions:
   - fenced_code
   - attr_list
   - md_in_html
+extra:
+  static_files:
+    - media
 repo_url: https://github.com/PavSedl/RAILDUINO
 site_url: https://PavSedl.github.io/RAILDUINO

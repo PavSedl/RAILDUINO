@@ -1,7 +1,7 @@
 name: Deploy MkDocs
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -10,5 +10,5 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.13'
-      - run: pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
-      - run: mkdocs gh-deploy --force
+      - run: pip install mkdocs==1.6.1 mkdocs-material==9.6.17 mkdocs-mermaid2-plugin==1.2.1
+      - run: mkdocs gh-deploy --force --config-file mkdocs.yml

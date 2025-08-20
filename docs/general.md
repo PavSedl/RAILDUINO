@@ -1,4 +1,4 @@
-## GENERAL
+## 1. GENERAL
 
 ### 1.1 Symbols used
 

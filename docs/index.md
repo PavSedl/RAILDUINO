@@ -2,7 +2,7 @@
 
 ##OPERATING INSTRUCTIONS##
 
-![](media/railduino.jpeg){style="max-height:300px; margin: 20px 0 0 150px;"}
+<img src="./media/railduino.jpeg" style="max-height: 300px; margin: 20px 0 0 150px;">
 >Content
 
 [1 - General](./general.md)  

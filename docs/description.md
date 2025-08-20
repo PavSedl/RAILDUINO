@@ -1,19 +1,19 @@
 ### 2.1 Concept
 The Railduino module comprises of the following basic parts:
 
-####Arduino MEGA 2560 R3
+#### Arduino MEGA 2560 R3
 <p style="text-align: justify;">
 A printed circuit board with a microcontroller in form of an 8-bit processor ATmega 2560 with the 
 frequency of 16 MHz, known as Arduino MEGA 2560 -- an open-source project -- more can be found on http://arduino.cc/.
 </p>
 
-####Railduino shield
+#### Railduino shield
 <p style="text-align: justify;">
 Main PCB board enabling connection of all the outside sensors and actuators to the controller, which adjust the signals so that the microcontroller can read or control them.
 In addition, this board ensures all power supply and communication.
 </p>
 
-####Ethernet shield
+#### Ethernet shield
 <p style="text-align: justify;">
 An additional (optional) PCB which offers a possibility to connect the whole system to the Ethernet network.
 When this function is used then the Railduino module is additionally equipped with the headers connectors between shield and Railduino shield.

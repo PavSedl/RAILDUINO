@@ -25,4 +25,4 @@ jobs:
           restore-keys: |
             mkdocs-material-
       - run: pip install mkdocs-material mkdocs-mermaid2-plugin
-      - run: mkdocs gh-deploy --force
+      - run: mkdocs gh-deploy --config-file mkdocs.yml

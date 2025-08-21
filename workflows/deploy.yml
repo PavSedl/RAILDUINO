@@ -1,7 +1,7 @@
 name: Deploy MkDocs
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -20,5 +20,5 @@ jobs:
           path: ~/.cache 
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs==1.6.0 mkdocs-material==9.5.39 mkdocs-mermaid2-plugin==1.2.1
+      - run: pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
       - run: mkdocs gh-deploy --force --config-file mkdocs.yml

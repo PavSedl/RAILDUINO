@@ -23,25 +23,26 @@ by the manufacturer may undermine the protection provided by the device.
 Do not connect the device to the power supply (dangerous voltage) unless
 it is being installed. Repairs of the module can be carried out only by
 the manufacturer.
-</div></br><div style="text-align: justify;">
+</div>
 ![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
+<div style="text-align: justify;">
 In an applications with the connection
 of main voltage of 230V to the output terminals of the device a
 sufficient distance or insulation from the wires, clamps and enclosing
 against the surroundings must be provided, due to preservation of
 protection against electric shock. Behind the front cover of the
 device there are output terminals, where dangerous voltage can occur.
-</div></br><div style="text-align: justify;">
+</div><div style="text-align: justify;">
 In the Czech Republic only a qualified person is allowed to install the
 device (a person min. skilled according to Act No. 250/2021 Coll.
 after familiarization with these instructions. The device must not
 be used otherwise than in accordance with these instructions.
-</div></br><div style="text-align: justify;">
+</div><div style="text-align: justify;">
 To prevent risk of electical injury or fire the maximal operation
 parameters of the device must not be exceeded, particularly the range of
 operational temperatures due to heat impact from connected or other
 technological equipment nearby!
-</div></br><div style="text-align: justify;">
+</div><div style="text-align: justify;">
 Protect the device from a direct sun light, dust, high temperature,
 mechanical vibrations and impact, from rain and high moisture. In case
 of increased ambient temperature above the mentioned limit a ventilation

@@ -1,14 +1,13 @@
-## 1. GENERAL
+## GENERAL
 
 ### 1.1 Symbols used
 
-!!!	note ""
-    ![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-    <p>A warning sign, for safe use these instructions must be followed</p>
-    ![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-    <p>CE marking, certifies compliance of the product with the legal requirements</p>
-    ![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-    <p>The product does not belong to municipal waste and is subject to separate collection</p>
+![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+<p>A warning sign, for safe use these instructions must be followed</p>
+![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+<p>CE marking, certifies compliance of the product with the legal requirements</p>
+![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
+<p>The product does not belong to municipal waste and is subject to separate collection</p>
 
 ### 1.2 Safety warnings
 

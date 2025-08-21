@@ -19,7 +19,7 @@ An additional (optional) PCB which offers a possibility to connect the whole sys
 When this function is used then the Railduino module is additionally equipped with the headers connectors between shield and Railduino shield.
 </p>
 
-![](media/Railduino_chunked.jpg){ style="margin: 0 0 0 120px; max-height:600px" }
+![](media/Railduino_chunked.jpg){: style="margin: 0 0 0 120px; max-height:600px" }
 
 ### 2.2 Product Description
 

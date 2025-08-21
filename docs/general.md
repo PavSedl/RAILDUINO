@@ -3,11 +3,11 @@
 ### 1.1 Symbols used
 
 ![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<p>A warning sign, for safe use these instructions must be followed</p>
+<div>A warning sign, for safe use these instructions must be followed</div>
 ![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<p>CE marking, certifies compliance of the product with the legal requirements</p>
+<div>CE marking, certifies compliance of the product with the legal requirements</div>
 ![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<p>The product does not belong to municipal waste and is subject to separate collection</p>
+<div>The product does not belong to municipal waste and is subject to separate collection</div>
 
 ### 1.2 Safety warnings
 
@@ -23,7 +23,7 @@ by the manufacturer may undermine the protection provided by the device.
 Do not connect the device to the power supply (dangerous voltage) unless
 it is being installed. Repairs of the module can be carried out only by
 the manufacturer.
-</div></br>
+</div>
 ![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
 <div style="text-align: justify;">
 In an applications with the connection
@@ -32,17 +32,17 @@ sufficient distance or insulation from the wires, clamps and enclosing
 against the surroundings must be provided, due to preservation of
 protection against electric shock. Behind the front cover of the
 device there are output terminals, where dangerous voltage can occur.
-</div></br><div style="text-align: justify;">
+</div><div style="text-align: justify; margin-top:20px;">
 In the Czech Republic only a qualified person is allowed to install the
 device (a person min. skilled according to Act No. 250/2021 Coll.
 after familiarization with these instructions. The device must not
 be used otherwise than in accordance with these instructions.
-</div></br><div style="text-align: justify;">
+</div><div style="text-align: justify; margin-top:20px;">
 To prevent risk of electical injury or fire the maximal operation
 parameters of the device must not be exceeded, particularly the range of
 operational temperatures due to heat impact from connected or other
 technological equipment nearby!
-</div></br><div style="text-align: justify;">
+</div><div style="text-align: justify; margin-top:20px;">
 Protect the device from a direct sun light, dust, high temperature,
 mechanical vibrations and impact, from rain and high moisture. In case
 of increased ambient temperature above the mentioned limit a ventilation
@@ -63,22 +63,22 @@ up to +85 °C.
 </div>
 
 ### 1.5 Installation and commisioning
-<p style="text-align: justify;">
+<div style="text-align: justify;">
 The device should be installed only by technicians, who are acquainted
 with the technical terms, warnings and instructions and who are able to
 adhere to these instructions. If there are any doubts regarding the
 right handling with the module, do not hesitate to contact the local
 distributor or the manufacturer.
-</p><p style="text-align: justify;">
+</div><div style="text-align: justify;margin-top:20px;">
 Mounting and connection of the device should meet the national
 legislation governing installations of electric materials, i. e.
 diameter of conductors, protective fuses and positions. The Railduino
 Module is intended to be mount on the DIN rail in compliance with the
 standard EN 60715 or the PR-TS 35 type.
-</p><p style="text-align: justify;">
+</div><div style="text-align: justify;margin-top:20px;">
 When installing, commissioning, operating and during maintenance pay
 attention to the instructions mentioned in the chapter 4.
-</p>
+</div>
 
 ### 1.6 Spare parts
 <div style="text-align: justify;">
@@ -108,12 +108,12 @@ improper use or normal wear and tear.
 </div>
 
 ### 1.9 Termination of operation and disposal
-![](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
-<p style="text-align: justify;">
+![](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 40px;" }
+<div style="text-align: justify;">
 During termination of operation, the
 dismantling and disposal are possible to execute only after the power
 supply is disconnected.
-</p><p style="text-align: justify;">
+</div><div style="text-align: justify;margin-top:20px;">
 If the product Railduino is not further used, or should it be replaced
 with a new one, it is not disposed with the general household waste.
 Disposal of this product must be performed in a separate collection.
@@ -122,8 +122,8 @@ and packaging materials. Reuse of recycled materials helps prevent
 environmental pollution and reduces the demand for raw materials. When
 buying new products, stores, local waste disposal or recycling plants
 will provide information on proper disposal of electronic waste.
-</p><p style="text-align: justify;">
+</div><div style="text-align: justify;margin-top:20px;">
 To avoid damage of the environment or human health from uncontrolled
 disposal, we recommend to contact the seller for information on safe
 disposal of this product.
-</p>
+</div>

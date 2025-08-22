@@ -76,7 +76,7 @@ MODBUS Register Map
 
 register number (2 bytes)  description
 0 - bits 0-7               relay outputs 1-8
-1 - bits 16-24             relay outputs 9-12
+1 - bits 16-19             relay outputs 9-12
 2 - bits 32-40             digital outputs HSS 1-4, LSS 1-4
 3 - LSB byte               HSS PWM value 1 (0-255)
 4 - LSB byte               HSS PWM value 2 (0-255)

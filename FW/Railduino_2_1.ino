@@ -13,31 +13,28 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "17082025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "22082025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>Railduino Documentation</title>
+    <title>Railduino Firmware Documentation</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 14px; margin: 20px; }
         .container { width: 1100px; margin: 0 auto; position: relative; }
         h2, h3 { font-family: Arial, sans-serif; }
         pre { background: #f4f4f4; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; }
-        a { color: #0066cc; text-decoration: none; }
-        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class='container'>
     <h2>Railduino Firmware Documentation</h2>
-    <p><a href='/'>Back to Control Panel</a></p>
 )=====";
 
 const char docsContentUDPSyntax1[] PROGMEM = R"=====(
-    <h3>UDP Syntax</h3>
+    <h3>UDP</h3>
     <pre>
 signals:
   DS18B20 1wire sensor packet:    rail1 1w 2864fc3008082 25.44
@@ -61,44 +58,49 @@ commands:
 default scan cycles:
   1wire cycle:                    30000 ms
   analog input cycle:             10000 ms
-)=====";
-
-const char docsContentModbus[] PROGMEM = R"=====(
-    <h3>MODBUS Commands</h3>
-    <pre>
-MODBUS TCP commands: FC1 - FC16
-MODBUS RTU commands: FC3, FC6, FC16
     </pre>
 )=====";
 
+const char docsContentModbus[] PROGMEM = R"=====(
+    <h3>MODBUS</h3>
+    <pre>
+MODBUS TCP commands: FC1 - FC16
+MODBUS RTU commands: FC3, FC6, FC16
+
+Registers are 2 bytes (16 bits) - only lowest significatn byte (LSB) is used
+    
+)=====";
+
 const char docsContentRegisterMap[] PROGMEM = R"=====(
-    MODBUS Register Map
-register number            description
-0                          relay outputs 1-8
-1                          relay outputs 9-12
-2                          digital outputs HSS 1-4, LSS 1-4
-3                          HSS PWM value 1 (0-255)
-4                          HSS PWM value 2 (0-255)
-5                          HSS PWM value 3 (0-255)
-6                          HSS PWM value 4 (0-255)
-7                          LSS PWM value 1 (0-255)
-8                          LSS PWM value 2 (0-255)
-9                          LSS PWM value 3 (0-255)
-10                         LSS PWM value 4 (0-255)
-11                         analog output 1
-12                         analog output 2
-13                         digital inputs 1-8
-14                         digital inputs 9-16
-15                         digital inputs 17-24
-16                         analog input 1           0-1023
-17                         analog input 2           0-1023
-18                         service - reset (bit 0)
-19                         1st DS2438 Temp (value multiplied by 100)
-20                         1st DS2438 Vad (value multiplied by 100)
-21                         1st DS2438 Vsens (value multiplied by 100)
+MODBUS Register Map
+
+register number (2 bytes)  description
+0 - bits 0-7               relay outputs 1-8
+1 - bits 16-24             relay outputs 9-12
+2 - bits 32-40             digital outputs HSS 1-4, LSS 1-4
+3 - LSB byte               HSS PWM value 1 (0-255)
+4 - LSB byte               HSS PWM value 2 (0-255)
+5 - LSB byte               HSS PWM value 3 (0-255)
+6 - LSB byte               HSS PWM value 4 (0-255)
+7 - LSB byte               LSS PWM value 1 (0-255)
+8 - LSB byte               LSS PWM value 2 (0-255)
+9 - LSB byte               LSS PWM value 3 (0-255)
+10 - LSB byte              LSS PWM value 4 (0-255)
+11 - LSB byte              analog output 1 (0-255)
+12 - LSB byte              analog output 2 (0-255)
+13 - bits 208-215          digital inputs 1-8
+14 - bits 216-223          digital inputs 9-16
+15 - bits 224-231          digital inputs 17-24
+16 - LSB byte              analog input 1 (0-1023)
+17 - LSB byte              analog input 2 (0-1023)
+18 - bit 288               reset 
+19 - LSB byte              1st DS2438 Temp (value multiplied by 100)
+20 - LSB byte              1st DS2438 Vad (value multiplied by 100)
+21 - LSB byte              1st DS2438 Vsens (value multiplied by 100)
 -                         
-46                         DS2438 values (up to 10 sensors)
+46 - LSB byte              DS2438 values (up to 10 sensors)
 47-57                      DS18B20 Temperature (up to 10 sensors) (value multiplied by 100)
+</pre>
 )=====";
 
 const char docsContentFooter[] PROGMEM = R"=====(
@@ -107,7 +109,6 @@ const char docsContentFooter[] PROGMEM = R"=====(
 Combination of 1wire sensors must be up to 10pcs maximum (DS18B20 or DS2438)
 Using RS485 the UDP syntax must have \n symbol at the end of the command line
     </pre>
-    <p><a href='/'>Back to Control Panel</a></p>
 </body>
 </html>
 )=====";
@@ -138,6 +139,7 @@ EthernetClient testClient; // Client pro TCP test připojení
 #define EEPROM_DEBUGON 2
 #define EEPROM_PULSEON 3
 #define EEPROM_GATEWAYON 4
+#define EEPROM_UDPCONTROLON 5
 #define EEPROM_1WIRECYCLE 10
 #define EEPROM_ANAINCYCLE 15
 #define EEPROM_PULSECYCLE 20
@@ -212,6 +214,7 @@ bool serialLocked = false;
 bool debugEnabled = false;
 bool pulseOn = false;
 bool gatewayEnabled = false;
+bool useUDPctrl = true;
 int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19
 int sentPulse1 = 0, sentPulse2 = 0, sentPulse3 = 0;
 
@@ -353,7 +356,9 @@ void checkEthernet() {
         return;
     } 
     testClient.stop();
-    udpRecv.begin(listenPort);
+    if (useUDPctrl) {
+        udpRecv.begin(listenPort);
+    }
     udpSend.begin(sendPort);
 }
 
@@ -489,6 +494,7 @@ void handleWebServer() {
                     client.print(F("\"pulseCounts\":[")); client.print(sentPulse1); client.print(F(",")); client.print(sentPulse2); client.print(F(",")); client.print(sentPulse3); client.print(F("],"));
                     client.print(F("\"oneWireCycle\":")); client.print(oneWireCycle); client.print(F(","));
                     client.print(F("\"anaInputCycle\":")); client.print(anaInputCycle); client.print(F(","));
+                    client.print(F("\"useUDPctrl\":")); client.print(useUDPctrl ? 1 : 0); client.print(F(","));
                     client.print(F("\"pulseOn\":")); client.print(pulseOn ? 1 : 0); client.print(F(","));
                     client.print(F("\"pulseSendCycle\":")); client.print(pulseSendCycle); client.print(F(","));
                     client.print(F("\"gatewayEnabled\":")); client.print(gatewayEnabled ? 1 : 0); client.print(F(","));
@@ -759,6 +765,24 @@ void handleWebServer() {
                         }
                     }
 
+                    // Update UDP control enable state
+                    if (request.indexOf(F("useUDPctrl=")) != -1) {
+                        value = parseParam(request, F("useUDPctrl="), startIdx, endIdx);
+                        if (startIdx != -1) {
+                            bool newValue = (value == "1");
+                            if (newValue != useUDPctrl) {
+                                useUDPctrl = newValue;
+                                EEPROM.put(EEPROM_UDPCONTROLON, useUDPctrl);
+                                if (useUDPctrl) {
+                                    udpRecv.begin(listenPort);
+                                } else {
+                                    udpRecv.stop(); // Uvolní socket
+                                }
+                                dbg(F("Outputs control protocol changed: ")); dbgln(String(useUDPctrl));
+                            }
+                        }
+                    }
+
                     // Update relay aliases
                     if (request.indexOf(F("alias_relay_")) != -1) {
                         for (int i = 0; i < numOfRelays; i++) {
@@ -988,7 +1012,7 @@ void handleWebServer() {
                         client.println(F("<script>"));
                         client.println(F("let firstUpdate=true;let activePWMField=null;let pendingCommands={};let updateIntervalId=null;"));
                         client.println(F("function updateStatus(){"));
-                        client.println(F("fetch('/status?ts='+new Date().getTime()).then(response=>response.json()).then(data=>{"));
+                        client.println(F("fetch('/status').then(response => response.json()).then(data => {"));
                         // Update relays
                         client.print(F("for(let i=0;i<")); client.print(numOfRelays); client.println(F(";i++){"
                                         "let relay=document.getElementById('relay'+(i+1));if(relay)relay.checked=data.relays[i];}"));
@@ -1012,6 +1036,11 @@ void handleWebServer() {
                         client.println(F("for(let i=0;i<data.anaInputs.length;i++){"
                                         "let statusElem=document.getElementById('ai_status'+(i+1));"
                                         "if(statusElem)statusElem.textContent=data.anaInputs[i]+' ('+data.anaInputsVoltage[i].toFixed(1)+'V)';}"));
+                        // Update analog outputs
+                        client.print(F("for(let i=0;i<")); client.print(numOfAnaOuts); client.println(F(";i++){"
+                                        "let anaOut=document.getElementById('anaOut_'+(i+1));if(anaOut)anaOut.value=data.anaOuts[i]||0;"
+                                        "let anaOutVoltage=document.getElementById('anaOutVoltage'+(i+1));"
+                                        "if(anaOutVoltage)anaOutVoltage.textContent='('+data.anaOutsVoltage[i].toFixed(1)+'V)';}"));
                         // Update DS2438 sensors
                         client.println(F("for(let i=0;i<data.ds2438.length;i++){"
                                         "let snElem=document.getElementById('ds2438_sn'+(i+1));"
@@ -1032,12 +1061,13 @@ void handleWebServer() {
                         client.println(F("if(firstUpdate){"
                                         "let oneWireCycle=document.getElementById('oneWireCycle');if(oneWireCycle)oneWireCycle.value=data.oneWireCycle||30000;"
                                         "let anaInputCycle=document.getElementById('anaInputCycle');if(anaInputCycle)anaInputCycle.value=data.anaInputCycle||10000;"
+                                        "let useUDPctrl=document.getElementById('useUDPctrl');if(useUDPctrl)useUDPctrl.value=data.useUDPctrl.toString();"
                                         "let pulseOn=document.getElementById('pulseOn');if(pulseOn)pulseOn.value=data.pulseOn.toString();"
                                         "let gatewayEnabled=document.getElementById('gatewayEnabled');if(gatewayEnabled)gatewayEnabled.value=data.gatewayEnabled.toString();"
                                         "let pulseSendCycle=document.getElementById('pulseSendCycle');if(pulseSendCycle)pulseSendCycle.value=data.pulseSendCycle||10000;"
                                         "let checkInterval=document.getElementById('checkInterval');if(checkInterval)checkInterval.value=data.checkInterval||10000;"
                                         "let baudRate=document.getElementById('baudRate');if(baudRate)baudRate.value=data.baudRate||115200;"
-                                        "if(updateIntervalId)clearInterval(updateIntervalId);updateIntervalId=setInterval(updateStatus,3000);"));
+                                        "if(updateIntervalId)clearInterval(updateIntervalId);updateIntervalId=setInterval(updateStatus,2000);"));
                         client.print(F("for(let i=0;i<")); client.print(numOfAnaOuts); client.println(F(";i++){"
                                         "let anaOut=document.getElementById('anaOut_'+(i+1));if(anaOut)anaOut.value=data.anaOuts[i]||0;"
                                         "let anaOutVoltage=document.getElementById('anaOutVoltage'+(i+1));"
@@ -1105,7 +1135,13 @@ void handleWebServer() {
                         client.print(String(checkInterval));
                         client.print(F("' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr><tr><td>RS485 Baud Rate</td><td><input type='number' id='baudRate' style='width:80px;' value='"));
                         client.print(String(baudRate));
-                        client.print(F("' onchange='sendCommand(\"baudRate\",this.value)'> Bd</td></tr><tr><td>Pulses Sensing (DI 10,11,12)</td><td><select id='pulseOn' onchange='sendCommand(\"pulseOn\",this.value)'>"));
+                        client.print(F("' onchange='sendCommand(\"baudRate\",this.value)'> Bd</td></tr>"));
+                        client.print(F("<tr><td>Outputs control protocol</td><td><select id='useUDPctrl' onchange='sendCommand(\"useUDPctrl\",this.value)'>"));
+                        client.print(F("<option value='0' "));
+                        if (!useUDPctrl) client.print(F("selected"));
+                        client.print(F(">Modbus TCP</option><option value='1' "));
+                        if (useUDPctrl) client.print(F("selected"));
+                        client.print(F(">UDP</option></select></td></tr><tr><td>Pulses Sensing (DI 10,11,12)</td><td><select id='pulseOn' onchange='sendCommand(\"pulseOn\",this.value)'>"));
                         client.print(F("<option value='0' "));
                         if (!pulseOn) client.print(F("selected"));
                         client.print(F(">Off</option><option value='1' "));
@@ -1147,7 +1183,7 @@ void handleWebServer() {
                             client.print(F("<tr><td>HSS ")); client.print(i + 1); client.print(F("</td><td>"
                                         "<input type='checkbox' id='hss")); client.print(i + 1); 
                             client.print(F("' name='hss")); client.print(i + 1); client.print(F("' onchange='sendCommand(\"hss")); 
-                            client.print(i + 1); client.print(F("\",this.checked?1:0)'")); 
+                            client.print(i + 1); client.print(F("\",this.checked?255:0)'")); 
                             if (bitRead(Mb.MbData[hssLssByte], i)) client.print(F(" checked"));
                             client.print(F("></td><td><input type='number' id='hssPWM")); client.print(i + 1); 
                             client.print(F("' name='hssPWM")); client.print(i + 1); client.print(F("' min='0' max='255' value='")); 
@@ -1166,7 +1202,7 @@ void handleWebServer() {
                             client.print(F("<tr><td>LSS ")); client.print(i + 1); client.print(F("</td><td>"
                                         "<input type='checkbox' id='lss")); client.print(i + 1); 
                             client.print(F("' name='lss")); client.print(i + 1); client.print(F("' onchange='sendCommand(\"lss")); 
-                            client.print(i + 1); client.print(F("\",this.checked?1:0)'")); 
+                            client.print(i + 1); client.print(F("\",this.checked?255:0)'")); 
                             if (bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches)) client.print(F(" checked"));
                             client.print(F("></td><td>"));
                             if (i != 3) {
@@ -1400,6 +1436,7 @@ void setup() {
     EEPROM.get(EEPROM_DESCRIPTION, description);
     EEPROM.get(EEPROM_SERIALNUMBER, serialNumber);
     EEPROM.get(EEPROM_INITFLAG, initFlag);
+    EEPROM.get(EEPROM_UDPCONTROLON, useUDPctrl);
 
     if (initFlag != 0xAA) {
         char emptyAlias[41] = "";
@@ -1467,7 +1504,9 @@ void setup() {
             digitalWrite(ledPins[0], HIGH);
             delay(1000);
         }
-        udpRecv.begin(listenPort);
+        if (useUDPctrl) {
+            udpRecv.begin(listenPort);
+        }
         udpSend.begin(sendPort);
         server.begin();
         dbgln("IP address: " + ipToString(Ethernet.localIP()));
@@ -1497,12 +1536,21 @@ void loop() {
     // Handle webserver requests if Ethernet is enabled
     if (ethernetOK && dipSwitchEthOn) {
         handleWebServer();
-        Mb.MbsRun(); 
+        if (!useUDPctrl) {
+            Mb.MbsRun(); 
+        }
         IPrenew();
         if (checkEthernetTimer.isOver()) {
             checkEthernet();
             checkEthernetTimer.sleep(checkInterval);
         }
+    }
+    
+    // Process RS485 packets
+    if (!gatewayEnabled) {
+        modbus_update();    // using Modbus RTU
+    } else {
+        processRS485ToLAN(); // using plain RS485 packets
     }
 
     // Read digital inputs
@@ -1520,12 +1568,7 @@ void loop() {
     // Update status LED
     statusLed();
 
-    // Process RS485 packets
-    if (!gatewayEnabled) {
-        modbus_update();    // using Modbus RTU
-    } else {
-        processRS485ToLAN(); // using plain RS485 packets
-    }
+
 
     // Send pulse packet if pulse sensing is enabled
     if (pulseOn) {sendPulsePacket();}
@@ -1746,10 +1789,10 @@ void readDigInputs() {
             } else if (timestamp - inputChangeTimestamp[i] > debouncingTime) {
                 inputStatus[i] = newValue;
                 if (!newValue) {
-                    bitWrite(Mb.MbData[byteNo+5], bitPos, 1);
+                    bitWrite(Mb.MbData[digInp1Byte + byteNo], bitPos, 1);
                     sendInputOn(i + 1);
                 } else {
-                    bitWrite(Mb.MbData[byteNo+5], bitPos, 0);         
+                    bitWrite(Mb.MbData[digInp1Byte + byteNo], bitPos, 0);         
                     sendInputOff(i + 1);  
                 }
             }
@@ -1866,7 +1909,7 @@ void setAnaOut(int pwm, int value) {
 
 // Receive and parse incoming packet
 boolean receivePacket(String *cmd) {
-    if (ethernetOK) {
+    if (ethernetOK && useUDPctrl) {
         int packetSize = udpRecv.parsePacket();
         if (packetSize) {
             memset(inputPacketBuffer, 0, sizeof(inputPacketBuffer));
@@ -2020,10 +2063,24 @@ void processCommands() {
         }
     }
     for (int i = 0; i < numOfHSSwitches; i++) {
-        setHSSwitch(i, bitRead(Mb.MbData[hssLssByte], i));
+        int bitState = bitRead(Mb.MbData[hssLssByte], i);
+        if (bitState == 1 && Mb.MbData[hssPWM1Byte + i] == 0) {
+            Mb.MbData[hssPWM1Byte + i] = 255;
+        } else if (bitState == 0) {
+            Mb.MbData[hssPWM1Byte + i] = 0;
+        }
+        int value = (bitState == 1) ? Mb.MbData[hssPWM1Byte + i] : 0;
+        setHSSwitch(i, value);
     }
     for (int i = 0; i < numOfLSSwitches; i++) {
-        setLSSwitch(i, bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches));
+        int bitState = bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches);
+        if (bitState == 1 && Mb.MbData[lssPWM1Byte + i] == 0) {
+            Mb.MbData[lssPWM1Byte + i] = 255;
+        } else if (bitState == 0) {
+            Mb.MbData[lssPWM1Byte + i] = 0;
+        }
+        int value = (bitState == 1) ? Mb.MbData[lssPWM1Byte + i] : 0;
+        setLSSwitch(i, value);
     }
     for (int i = 0; i < numOfAnaOuts; i++) {
         setAnaOut(i, Mb.MbData[anaOut1Byte+i]);
@@ -2032,116 +2089,118 @@ void processCommands() {
         resetFunc();
     }
 
-    String cmd, originalCmd; // Dočasně zachováno, upravíme později
-    if (receivePacket(&cmd)) {
-        originalCmd = cmd;
-        dbg("Received packet: ");
-        dbgln(cmd);
-        digitalWrite(ledPins[1], HIGH);
+    if (useUDPctrl) {
+        String cmd, originalCmd; // Dočasně zachováno, upravíme později
+        if (receivePacket(&cmd)) {
+            originalCmd = cmd;
+            dbg("Received packet: ");
+            dbgln(cmd);
+            digitalWrite(ledPins[1], HIGH);
 
-        char prefix[5];
-        strncpy_P(prefix, relayStr, sizeof(prefix));
-        prefix[sizeof(prefix) - 1] = '\0';
-        if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-            for (int i = 0; i < numOfRelays; i++) {
-                byteNo = (i < 8) ? relOut1Byte : relOut2Byte;
-                bitPos = (i < 8) ? i : i - 8;
-                sprintf(cmdBuffer, "ro%d on", i + 1);
-                if (cmd == cmdBuffer) {
-                    bitWrite(Mb.MbData[byteNo], bitPos, 1);
-                }
-                sprintf(cmdBuffer, "ro%d off", i + 1);
-                if (cmd == cmdBuffer) {
-                    bitWrite(Mb.MbData[byteNo], bitPos, 0);
-                }
-            }
-        } else {
-            strncpy_P(prefix, HSSwitchStr, sizeof(prefix));
+            char prefix[5];
+            strncpy_P(prefix, relayStr, sizeof(prefix));
             prefix[sizeof(prefix) - 1] = '\0';
             if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                for (int i = 0; i < numOfHSSwitches; i++) {
-                    sprintf(cmdBuffer, "ho%d on", i + 1);
+                for (int i = 0; i < numOfRelays; i++) {
+                    byteNo = (i < 8) ? relOut1Byte : relOut2Byte;
+                    bitPos = (i < 8) ? i : i - 8;
+                    sprintf(cmdBuffer, "ro%d on", i + 1);
                     if (cmd == cmdBuffer) {
-                        Mb.MbData[hssPWM1Byte + i] = 255;
-                        bitWrite(Mb.MbData[hssLssByte], i, 1);
-                        setHSSwitch(i, 255);
+                        bitWrite(Mb.MbData[byteNo], bitPos, 1);
                     }
-                    sprintf(cmdBuffer, "ho%d off", i + 1);
+                    sprintf(cmdBuffer, "ro%d off", i + 1);
                     if (cmd == cmdBuffer) {
-                        Mb.MbData[hssPWM1Byte + i] = 0;
-                        bitWrite(Mb.MbData[hssLssByte], i, 0);
-                        setHSSwitch(i, 0);
-                    }
-                    sprintf(cmdBuffer, "ho%d_pwm ", i + 1);
-                    if (cmd.startsWith(cmdBuffer)) {
-                        String pwmValue = cmd.substring(strlen(cmdBuffer));
-                        int value = pwmValue.toInt();
-                        if (value >= 0 && value <= 255) {
-                            Mb.MbData[hssPWM1Byte + i] = value;
-                            bitWrite(Mb.MbData[hssLssByte], i, (value > 0) ? 1 : 0);
-                            setHSSwitch(i, value);
-                        }
+                        bitWrite(Mb.MbData[byteNo], bitPos, 0);
                     }
                 }
             } else {
-                strncpy_P(prefix, LSSwitchStr, sizeof(prefix));
+                strncpy_P(prefix, HSSwitchStr, sizeof(prefix));
                 prefix[sizeof(prefix) - 1] = '\0';
                 if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                    for (int i = 0; i < numOfLSSwitches; i++) {
-                        sprintf(cmdBuffer, "lo%d on", i + 1);
+                    for (int i = 0; i < numOfHSSwitches; i++) {
+                        sprintf(cmdBuffer, "ho%d on", i + 1);
                         if (cmd == cmdBuffer) {
-                            Mb.MbData[lssPWM1Byte + i] = 255;
-                            bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 1);
-                            setLSSwitch(i, 255);
+                            Mb.MbData[hssPWM1Byte + i] = 255;
+                            bitWrite(Mb.MbData[hssLssByte], i, 1);
+                            setHSSwitch(i, 255);
                         }
-                        sprintf(cmdBuffer, "lo%d off", i + 1);
+                        sprintf(cmdBuffer, "ho%d off", i + 1);
                         if (cmd == cmdBuffer) {
-                            Mb.MbData[lssPWM1Byte + i] = 0;
-                            bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 0);
-                            setLSSwitch(i, 0);
+                            Mb.MbData[hssPWM1Byte + i] = 0;
+                            bitWrite(Mb.MbData[hssLssByte], i, 0);
+                            setHSSwitch(i, 0);
                         }
-                        sprintf(cmdBuffer, "lo%d_pwm ", i + 1);
+                        sprintf(cmdBuffer, "ho%d_pwm ", i + 1);
                         if (cmd.startsWith(cmdBuffer)) {
                             String pwmValue = cmd.substring(strlen(cmdBuffer));
                             int value = pwmValue.toInt();
-                            if (value >= 0 && value <= 255 && i != 3) {
-                                Mb.MbData[lssPWM1Byte + i] = value;
-                                bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (value > 0) ? 1 : 0);
-                                setLSSwitch(i, value);
+                            if (value >= 0 && value <= 255) {
+                                Mb.MbData[hssPWM1Byte + i] = value;
+                                bitWrite(Mb.MbData[hssLssByte], i, (value > 0) ? 1 : 0);
+                                setHSSwitch(i, value);
                             }
                         }
                     }
                 } else {
-                    strncpy_P(prefix, anaOutStr, sizeof(prefix));
+                    strncpy_P(prefix, LSSwitchStr, sizeof(prefix));
                     prefix[sizeof(prefix) - 1] = '\0';
                     if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                        for (int i = 0; i < numOfAnaOuts; i++) {
-                            sprintf(cmdBuffer, "ao%d ", i + 1);
-                            if (cmd.substring(0, strlen(cmdBuffer)) == cmdBuffer) {
-                                String anaOutValue = cmd.substring(strlen(cmdBuffer));
-                                Mb.MbData[anaOut1Byte + i] = anaOutValue.toInt();
+                        for (int i = 0; i < numOfLSSwitches; i++) {
+                            sprintf(cmdBuffer, "lo%d on", i + 1);
+                            if (cmd == cmdBuffer) {
+                                Mb.MbData[lssPWM1Byte + i] = 255;
+                                bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 1);
+                                setLSSwitch(i, 255);
+                            }
+                            sprintf(cmdBuffer, "lo%d off", i + 1);
+                            if (cmd == cmdBuffer) {
+                                Mb.MbData[lssPWM1Byte + i] = 0;
+                                bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 0);
+                                setLSSwitch(i, 0);
+                            }
+                            sprintf(cmdBuffer, "lo%d_pwm ", i + 1);
+                            if (cmd.startsWith(cmdBuffer)) {
+                                String pwmValue = cmd.substring(strlen(cmdBuffer));
+                                int value = pwmValue.toInt();
+                                if (value >= 0 && value <= 255 && i != 3) {
+                                    Mb.MbData[lssPWM1Byte + i] = value;
+                                    bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (value > 0) ? 1 : 0);
+                                    setLSSwitch(i, value);
+                                }
                             }
                         }
                     } else {
-                        strncpy_P(prefix, rstStr, sizeof(prefix));
+                        strncpy_P(prefix, anaOutStr, sizeof(prefix));
                         prefix[sizeof(prefix) - 1] = '\0';
-                        if (cmd == prefix) {
-                            bitWrite(Mb.MbData[resetByte], 0, 1);
+                        if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
+                            for (int i = 0; i < numOfAnaOuts; i++) {
+                                sprintf(cmdBuffer, "ao%d ", i + 1);
+                                if (cmd.substring(0, strlen(cmdBuffer)) == cmdBuffer) {
+                                    String anaOutValue = cmd.substring(strlen(cmdBuffer));
+                                    Mb.MbData[anaOut1Byte + i] = anaOutValue.toInt();
+                                }
+                            }
+                        } else {
+                            strncpy_P(prefix, rstStr, sizeof(prefix));
+                            prefix[sizeof(prefix) - 1] = '\0';
+                            if (cmd == prefix) {
+                                bitWrite(Mb.MbData[resetByte], 0, 1);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        if (gatewayEnabled) {
-            digitalWrite(serial3TxControl, HIGH);
-            Serial3.print(originalCmd + "\n");
-            delay(serial3TxDelay);
-            digitalWrite(serial3TxControl, LOW);
-            dbg("Forwarded to RS485: ");
-            dbgln(originalCmd);
-        }
+            if (gatewayEnabled) {
+                digitalWrite(serial3TxControl, HIGH);
+                Serial3.print(originalCmd + "\n");
+                delay(serial3TxDelay);
+                digitalWrite(serial3TxControl, LOW);
+                dbg("Forwarded to RS485: ");
+                dbgln(originalCmd);
+            }
 
-        digitalWrite(ledPins[1], LOW);
+            digitalWrite(ledPins[1], LOW);
+        }
     }
 }

@@ -24,7 +24,7 @@ Do not connect the device to the power supply (dangerous voltage) unless
 it is being installed. Repairs of the module can be carried out only by
 the manufacturer.
 </div>  
-![](media/warning_sign.jpeg){: style="float: left; margin: 15px 20px 0 0; max-width: 25px;" }
+![](media/warning_sign.jpeg){: style="float: left; margin: 10px 20px 0 0; max-width: 25px;" }
 <div style="text-align: justify;">
 In an applications with the connection
 of main voltage of 230V to the output terminals of the device a
@@ -113,7 +113,7 @@ improper use or normal wear and tear.
 During termination of operation, the
 dismantling and disposal are possible to execute only after the power
 supply is disconnected.
-</div><div style="text-align: justify;margin-top:20px;">
+</div><div style="text-align: justify;">
 If the product Railduino is not further used, or should it be replaced
 with a new one, it is not disposed with the general household waste.
 Disposal of this product must be performed in a separate collection.

@@ -3,11 +3,11 @@
 ### 1.1 Symbols used
 
 ![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<div>A warning sign, for safe use these instructions must be followed</div>  
+A warning sign, for safe use these instructions must be followed  
 ![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<div>CE marking, certifies compliance of the product with the legal requirements</div>
+CE marking, certifies compliance of the product with the legal requirements  
 ![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<div>The product does not belong to municipal waste and is subject to separate collection</div>
+The product does not belong to municipal waste and is subject to separate collection  
 
 ### 1.2 Safety warnings
 

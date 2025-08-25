@@ -13,17 +13,17 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "22082025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "25082025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>Railduino Firmware Documentation</title>
+    <title>Railduino Protocol Documentation</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 14px; margin: 20px; }
-        .container { width: 1100px; margin: 0 auto; position: relative; }
+        .container { width: 1000px; margin: 0 auto; position: relative; }
         h2, h3 { font-family: Arial, sans-serif; }
         pre { background: #f4f4f4; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; }
     </style>
@@ -67,7 +67,7 @@ const char docsContentModbus[] PROGMEM = R"=====(
 MODBUS TCP commands: FC1 - FC16
 MODBUS RTU commands: FC3, FC6, FC16
 
-Registers are 2 bytes (16 bits) - only lowest significatn byte (LSB) is used
+Registers are 2 bytes (16 bits) - only lowest significant byte (LSB) is used
     
 )=====";
 
@@ -77,7 +77,7 @@ MODBUS Register Map
 register number (2 bytes)  description
 0 - bits 0-7               relay outputs 1-8
 1 - bits 16-19             relay outputs 9-12
-2 - bits 32-40             digital outputs HSS 1-4, LSS 1-4
+2 - bits 32-39             digital outputs HSS 1-4, LSS 1-4
 3 - LSB byte               HSS PWM value 1 (0-255)
 4 - LSB byte               HSS PWM value 2 (0-255)
 5 - LSB byte               HSS PWM value 3 (0-255)
@@ -85,7 +85,7 @@ register number (2 bytes)  description
 7 - LSB byte               LSS PWM value 1 (0-255)
 8 - LSB byte               LSS PWM value 2 (0-255)
 9 - LSB byte               LSS PWM value 3 (0-255)
-10 - LSB byte              LSS PWM value 4 (0-255)
+10 - LSB byte              LSS value 4 (0 or 255)
 11 - LSB byte              analog output 1 (0-255)
 12 - LSB byte              analog output 2 (0-255)
 13 - bits 208-215          digital inputs 1-8
@@ -990,23 +990,28 @@ void handleWebServer() {
                         // HTML head with UTF-8 charset and styles
                         client.println(F("<!DOCTYPE HTML><html><head><meta charset=\"UTF-8\"><title>Railduino Control</title><style>"
                                         "body{font-family:Arial,sans-serif;font-size:14px;position:relative;}"
-                                        ".container{width:1100px;margin:0 auto;position:relative;}"
-                                        "h1,h2,h3{font-family:Arial,sans-serif;}"
-                                        "table.inner{border-collapse:collapse;width:100%;}"
-                                        "table.outer{border:1px solid #ccc;width:100%;}"
+                                        ".container{width:1000px;margin:0 auto;position:relative;}"
+                                        "h1,h2,h3{font-family:Arial,sans-serif;color:#444;}"
+                                        "table.inner{border-collapse:collapse;width:100%;background-color:#f8f9fa;}"
+                                        "table.outer{border:1px solid #ccc;width:100%;border-radius:8px;overflow:hidden;box-shadow:0 4px 8px rgba(0,0,0,0.1);background-color:#f8f9fa;padding:0 0 10px 15px}"
                                         "td{vertical-align:middle;font-size:14px;padding:2px;}"
-                                        "input,select{font-size:14px;padding:2px;}"
+                                        "input,select{font-size:14px;color:#555;padding:3px;border:1px solid #ccc;border-radius:4px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);transition:all 0.2s ease;}"
+                                        "input:focus,select:focus{border-color:#80bdff;outline:none;box-shadow:0 0 5px rgba(0,123,255,0.5);}"
+                                        "input:hover,select:hover{border-color:#999;}"
                                         ".reset-button{position:absolute;top:0px;right:0px;}"
                                         ".reset-button input{padding:5px;}"
                                         "tr{height:26px;}"
                                         "table.inner td:first-child{width:100px;}"
+                                        "table.inner td:first-child:hover{cursor: pointer;}"
                                         "table.inner td:nth-child(2){width:80px;}"
                                         "table.basic-info-table td:first-child{width:180px;}"
                                         "table.other-settings-table td:first-child{width:200px;}"
-                                        "table.onewire-table td:first-child{width:80px;}"
-                                        "table.onewire-table td:nth-child(2){width:130px;}"
-                                        "table.onewire-table td:nth-child(3),table.onewire-table td:nth-child(4),table.onewire-table td:nth-child(5){width:40px;}"
-                                        ".no-border{border:none;}</style>"));
+                                        "table.onewire-table td:first-child{width:80px;font-size:13px;}"
+                                        "table.onewire-table td:nth-child(2){width:130px;font-size:13px;}"
+                                        "table.onewire-table td:nth-child(3),table.onewire-table td:nth-child(4),table.onewire-table td:nth-child(5){width:40px;font-size:13px;}"
+                                        "table.onewire-table input{width:120px;}"
+                                        ".no-border{border:none;}"
+                                        "</style>"));
 
                         // JavaScript for updating UI
                         client.println(F("<script>"));
@@ -1101,12 +1106,13 @@ void handleWebServer() {
                         // HTML body
                         client.println(F("<body><div class='container'>"
                                         "<div class='reset-button'>"
-                                        "<input type='button' onclick=\"window.location.href='/info'\" value='View Docs'>"
+                                        "<input type='button' onclick=\"window.location.href='/info'\" value='Protocol Docs'>&nbsp;"
+                                        "<input type='button' onclick=\"window.open('https://github.com/PavSedl/RAILDUINO', '_blank')\" value='Github'>&nbsp;"
                                         "<input type='button' onclick=\"if(confirm('The module will reboot. Continue?')) window.location.href='/reboot'\" value='Save&Reboot'>"
                                         "</div><h2>Railduino Control Panel</h2>"));
 
                         // First row: Basic Info and Settings
-                        client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
+                        client.println(F("<div style='margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
                                         "<h3>Basic Information</h3><table class='basic-info-table'>"
                                         "<tr><td>DIP Switch Address</td><td>")); client.print(boardAddress); client.println(F("</td></tr>"
                                         "<tr><td>IP Address (DHCP)</td><td>")); client.print(Ethernet.localIP()); client.println(F("</td></tr>"
@@ -1125,6 +1131,7 @@ void handleWebServer() {
                         client.print(hwVer);
                         client.print(F("</td></tr><tr><td>Firmware version</td><td>"));
                         client.print(fwVer);
+                        client.print(F("</td></tr><tr><td></td><td><tr><td></td><td></td></tr>"));
                         client.print(F("</td></tr></table></td><td width='50%'><h3>Other settings</h3><table class='other-settings-table'><tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' max='600000' style='width:80px;' value='"));
                         client.print(String(oneWireCycle));
                         client.print(F("' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr><tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' max='600000' style='width:80px;' value='"));
@@ -1159,19 +1166,45 @@ void handleWebServer() {
                         client.print(F(">On</option></select></td></tr></table></td></tr></table></div>"));
 
                         // Second row: Relay Status
-                        client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
+                        client.println(F("<div style='margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
                                         "<h3>Relay Status</h3><table class='inner'>"));
                         for (int i = 0; i < numOfRelays; i++) {
-                            client.print(F("<tr><td>Relay ")); client.print(i + 1); client.print(F("</td><td>"
-                                        "<input type='checkbox' id='relay")); client.print(i + 1); 
-                            client.print(F("' name='relay")); client.print(i + 1); client.print(F("' onchange='sendCommand(\"relay")); 
-                            client.print(i + 1); client.print(F("\",this.checked?1:0)'")); 
+                            client.print(F("<tr><td title=\"Modbus Register "));
+                            if (i < 8) {
+                                client.print(F("0, Bit "));
+                                client.print(i); // Bity 0-7 pro relé 1-8
+                            } else {
+                                client.print(F("1, Bit "));
+                                client.print(16 + (i - 8)); // Bity 16-19 pro relé 9-12
+                            }
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ro"));
+                            client.print(i + 1);
+                            client.print(F(" on'\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ro"));
+                            client.print(i + 1);
+                            client.print(F(" off'\">Relay "));
+                            client.print(i + 1);
+                            client.print(F("</td><td>"
+                                        "<input type='checkbox' id='relay"));
+                            client.print(i + 1);
+                            client.print(F("' name='relay"));
+                            client.print(i + 1);
+                            client.print(F("' onchange='sendCommand(\"relay"));
+                            client.print(i + 1);
+                            client.print(F("\",this.checked?1:0)'"));
                             if (bitRead(Mb.MbData[i < 8 ? relOut1Byte : relOut2Byte], i % 8)) client.print(F(" checked"));
-                            client.print(F("></td><td><input type='text' maxlength='30' id='alias_relay_")); client.print(i + 1); 
-                            client.print(F("' name='alias_relay_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("></td><td><input type='text' maxlength='30' id='alias_relay_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_relay_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_RELAYS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); 
-                            client.print(F("' onchange='sendCommand(\"alias_relay_")); client.print(i + 1); 
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_relay_"));
+                            client.print(i + 1);
                             client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
@@ -1180,129 +1213,309 @@ void handleWebServer() {
                         // Second row: HSS and LSS Status
                         client.println(F("<table class='inner'><tr><td><h3>High-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfHSSwitches; i++) {
-                            client.print(F("<tr><td>HSS ")); client.print(i + 1); client.print(F("</td><td>"
-                                        "<input type='checkbox' id='hss")); client.print(i + 1); 
-                            client.print(F("' name='hss")); client.print(i + 1); client.print(F("' onchange='sendCommand(\"hss")); 
-                            client.print(i + 1); client.print(F("\",this.checked?255:0)'")); 
+                            client.print(F("<tr><td title=\"Modbus reg 2 - bit "));
+                            client.print(32 + i); // Bity 32-35 pro HSS 1-4
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ho"));
+                            client.print(i + 1);
+                            client.print(F(" on'\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ho"));
+                            client.print(i + 1);
+                            client.print(F(" off'\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ho"));
+                            client.print(i + 1);
+                            client.print(F("_pwm VALUE'\">HSS "));
+                            client.print(i + 1);
+                            client.print(F("</td><td>"
+                                        "<input type='checkbox' id='hss"));
+                            client.print(i + 1);
+                            client.print(F("' name='hss"));
+                            client.print(i + 1);
+                            client.print(F("' onchange='sendCommand(\"hss"));
+                            client.print(i + 1);
+                            client.print(F("\",this.checked?255:0)'"));
                             if (bitRead(Mb.MbData[hssLssByte], i)) client.print(F(" checked"));
-                            client.print(F("></td><td><input type='number' id='hssPWM")); client.print(i + 1); 
-                            client.print(F("' name='hssPWM")); client.print(i + 1); client.print(F("' min='0' max='255' value='")); 
-                            client.print(Mb.MbData[hssPWM1Byte + i]); client.print(F("' onchange='sendCommand(\"hss")); 
-                            client.print(i + 1); client.print(F("\",this.value)'>"));
-                            client.print(F("</td><td><input type='text' maxlength='30' id='alias_hss_")); client.print(i + 1); 
-                            client.print(F("' name='alias_hss_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("></td><td><input type='number' id='hssPWM"));
+                            client.print(i + 1);
+                            client.print(F("' name='hssPWM"));
+                            client.print(i + 1);
+                            client.print(F("' min='0' max='255' value='"));
+                            client.print(Mb.MbData[hssPWM1Byte + i]);
+                            client.print(F("' onchange='sendCommand(\"hss"));
+                            client.print(i + 1);
+                            client.print(F("\",this.value)'>"));
+                            client.print(F("</td><td><input type='text' maxlength='30' id='alias_hss_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_hss_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_HSS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); 
-                            client.print(F("' onchange='sendCommand(\"alias_hss_")); client.print(i + 1); 
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_hss_"));
+                            client.print(i + 1);
                             client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</table></td></tr><tr><td><h3>Low-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfLSSwitches; i++) {
-                            client.print(F("<tr><td>LSS ")); client.print(i + 1); client.print(F("</td><td>"
-                                        "<input type='checkbox' id='lss")); client.print(i + 1); 
-                            client.print(F("' name='lss")); client.print(i + 1); client.print(F("' onchange='sendCommand(\"lss")); 
-                            client.print(i + 1); client.print(F("\",this.checked?255:0)'")); 
+                            client.print(F("<tr><td title=\"Modbus reg 2 - bit "));
+                            client.print(36 + i); // Bity 36-39 pro LSS 1-4
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" lo"));
+                            client.print(i + 1);
+                            client.print(F(" on'\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" lo"));
+                            client.print(i + 1);
+                            client.print(F(" off'"));
+                            if (i != 3) { // PWM není podporováno pro LSS4
+                                client.print(F("\nUDP: 'rail"));
+                                client.print(boardAddress);
+                                client.print(F(" lo"));
+                                client.print(i + 1);
+                                client.print(F("_pwm VALUE'"));
+                            }
+                            client.print(F("\">LSS "));
+                            client.print(i + 1);
+                            client.print(F("</td><td>"
+                                        "<input type='checkbox' id='lss"));
+                            client.print(i + 1);
+                            client.print(F("' name='lss"));
+                            client.print(i + 1);
+                            client.print(F("' onchange='sendCommand(\"lss"));
+                            client.print(i + 1);
+                            client.print(F("\",this.checked?255:0)'"));
                             if (bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches)) client.print(F(" checked"));
                             client.print(F("></td><td>"));
                             if (i != 3) {
-                                client.print(F("<input type='number' id='lssPWM")); client.print(i + 1); 
-                                client.print(F("' name='lssPWM")); client.print(i + 1); client.print(F("' min='0' max='255' value='")); 
-                                client.print(Mb.MbData[lssPWM1Byte + i]); client.print(F("' onchange='sendCommand(\"lss")); 
-                                client.print(i + 1); client.print(F("\",this.value)'>"));
+                                client.print(F("<input type='number' id='lssPWM"));
+                                client.print(i + 1);
+                                client.print(F("' name='lssPWM"));
+                                client.print(i + 1);
+                                client.print(F("' min='0' max='255' value='"));
+                                client.print(Mb.MbData[lssPWM1Byte + i]);
+                                client.print(F("' onchange='sendCommand(\"lss"));
+                                client.print(i + 1);
+                                client.print(F("\",this.value)'>"));
                             } else {
                                 client.print(F("-"));
                             }
-                            client.print(F("</td><td><input type='text' maxlength='30' id='alias_lss_")); client.print(i + 1); 
-                            client.print(F("' name='alias_lss_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("</td><td><input type='text' maxlength='30' id='alias_lss_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_lss_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_LSS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); 
-                            client.print(F("' onchange='sendCommand(\"alias_lss_")); client.print(i + 1); 
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_lss_"));
+                            client.print(i + 1);
                             client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</table></td></tr></table></td></tr></table></div>"));
 
                         // Third row: Digital Inputs
-                        client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr>"
+                        client.println(F("<div style='margin-bottom:10px;'><table class='outer'><tr>"
                                         "<td width='50%'><h3 class='dig-inputs-title'>Digital Inputs 1-12</h3><table class='inner' id='digInputsTable1'><tbody>"));
                         for (int i = 0; i < 12; i++) {
-                            client.print(F("<tr><td>DI ")); client.print(i + 1); client.print(F("</td><td id='di_status")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(1 - inputStatus[i]); client.print(F("</td><td><input type='text' maxlength='30' id='alias_digInput_")); client.print(i + 1); 
-                            client.print(F("' name='alias_digInput_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("<tr><td title=\"Modbus reg "));
+                            if (i < 8) {
+                                client.print(F("13 - bit "));
+                                client.print(208 + i); // Bity 208-215 pro DI 1-8
+                            } else {
+                                client.print(F("14 - bit "));
+                                client.print(216 + (i - 8)); // Bity 216-223 pro DI 9-12
+                            }
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" di"));
+                            client.print(i + 1);
+                            client.print(F(" VALUE'\">DI "));
+                            client.print(i + 1);
+                            client.print(F("</td><td id='di_status"));
+                            client.print(i + 1);
+                            client.print(F("'>"));
+                            client.print(1 - inputStatus[i]);
+                            client.print(F("</td><td><input type='text' maxlength='30' id='alias_digInput_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_digInput_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_DIGINPUTS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); client.print(F("' onchange='sendCommand(\"alias_digInput_")); 
-                            client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_digInput_"));
+                            client.print(i + 1);
+                            client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</tbody></table></td><td width='50%'><h3 class='dig-inputs-title'>Digital Inputs 13-24</h3><table class='inner' id='digInputsTable2'><tbody>"));
                         for (int i = 12; i < 24; i++) {
-                            client.print(F("<tr><td>DI ")); client.print(i + 1); client.print(F("</td><td id='di_status")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(1 - inputStatus[i]); client.print(F("</td><td><input type='text' maxlength='30' id='alias_digInput_")); client.print(i + 1); 
-                            client.print(F("' name='alias_digInput_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("<tr><td title=\"Modbus reg "));
+                            if (i < 16) {
+                                client.print(F("14 - bit "));
+                                client.print(216 + (i - 8)); // Bity 216-223 pro DI 9-16
+                            } else {
+                                client.print(F("15 - bit "));
+                                client.print(224 + (i - 16)); // Bity 224-231 pro DI 17-24
+                            }
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" di"));
+                            client.print(i + 1);
+                            client.print(F(" VALUE'\">DI "));
+                            client.print(i + 1);
+                            client.print(F("</td><td id='di_status"));
+                            client.print(i + 1);
+                            client.print(F("'>"));
+                            client.print(1 - inputStatus[i]);
+                            client.print(F("</td><td><input type='text' maxlength='30' id='alias_digInput_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_digInput_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_DIGINPUTS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); client.print(F("' onchange='sendCommand(\"alias_digInput_")); 
-                            client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_digInput_"));
+                            client.print(i + 1);
+                            client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</tbody></table></td></tr></table></div>"));
 
                         // Fourth row: Analog Inputs and Outputs
-                        client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
+                        client.println(F("<div style='margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
                                         "<h3>Analog Inputs (0-1024 = 0-10V)</h3><table class='inner' id='anaInputsTable'><tbody>"));
                         for (int i = 0; i < numOfAnaInputs; i++) {
-                            client.print(F("<tr><td>AI ")); client.print(i + 1); client.print(F("</td><td id='ai_status")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(analogStatus[i], 2); client.print(F("</td><td>"
-                                        "<input type='text' maxlength='30' id='alias_anaInput_")); client.print(i + 1); 
-                            client.print(F("' name='alias_anaInput_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("<tr><td title=\"Modbus reg "));
+                            client.print(16 + i); // Registry 16-17 pro AI 1-2
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ai"));
+                            client.print(i + 1);
+                            client.print(F(" VALUE'\">AI "));
+                            client.print(i + 1);
+                            client.print(F("</td><td id='ai_status"));
+                            client.print(i + 1);
+                            client.print(F("'>"));
+                            client.print(analogStatus[i], 2);
+                            client.print(F("</td><td>"
+                                        "<input type='text' maxlength='30' id='alias_anaInput_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_anaInput_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_ANA_INPUTS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); client.print(F("' onchange='sendCommand(\"alias_anaInput_")); 
-                            client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_anaInput_"));
+                            client.print(i + 1);
+                            client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</tbody></table></td><td width='50%'><h3>Analog Outputs (0-255 = 0-10V)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfAnaOuts; i++) {
-                            client.print(F("<tr><td>AO ")); client.print(i + 1); client.print(F("</td><td>"
-                                        "<input type='number' id='anaOut")); client.print(i + 1); 
-                            client.print(F("' name='anaOut")); client.print(i + 1); client.print(F("' min='0' max='255' value='")); 
-                            client.print(Mb.MbData[anaOut1Byte + i]); client.print(F("' onchange='sendCommand(\"anaOut")); 
-                            client.print(i + 1); client.print(F("\",this.value)'>"));
-                            client.print(F("</td><td id='anaOutVoltage")); client.print(i + 1); client.print(F("'>(")); 
-                            client.print(anaOutsVoltage[i], 1); client.print(F("V)</td><td>"
-                                        "<input type='text' maxlength='30' id='alias_anaOut_")); client.print(i + 1); 
-                            client.print(F("' name='alias_anaOut_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("<tr><td title=\"Modbus reg "));
+                            client.print(11 + i); // Registry 11-12 pro AO 1-2
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" ao"));
+                            client.print(i + 1);
+                            client.print(F(" VALUE'\">AO "));
+                            client.print(i + 1);
+                            client.print(F("</td><td>"
+                                        "<input type='number' id='anaOut"));
+                            client.print(i + 1);
+                            client.print(F("' name='anaOut"));
+                            client.print(i + 1);
+                            client.print(F("' min='0' max='255' value='"));
+                            client.print(Mb.MbData[anaOut1Byte + i]);
+                            client.print(F("' onchange='sendCommand(\"anaOut"));
+                            client.print(i + 1);
+                            client.print(F("\",this.value)'>"));
+                            client.print(F("</td><td id='anaOutVoltage"));
+                            client.print(i + 1);
+                            client.print(F("'>("));
+                            client.print(anaOutsVoltage[i], 1);
+                            client.print(F("V)</td><td>"
+                                        "<input type='text' maxlength='30' id='alias_anaOut_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_anaOut_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_ANA_OUTS + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); client.print(F("' onchange='sendCommand(\"alias_anaOut_")); 
-                            client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_anaOut_"));
+                            client.print(i + 1);
+                            client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</table></td></tr></table></div>"));
 
                         // Fifth row: 1-Wire Sensors
-                        client.println(F("<div style='border:1px solid #ccc;margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
+                        client.println(F("<div style='margin-bottom:10px;'><table class='outer'><tr><td width='50%'>"
                                         "<h3>1-Wire Sensors DS2438</h3><table class='onewire-table' id='ds2438Table'><tbody>"));
                         for (int i = 0; i < DS2438count; i++) {
-                            client.print(F("<tr><td>DS2438-")); client.print(i + 1); client.print(F("</td><td id='ds2438_sn")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(oneWireAddressToString(sensors2438[i])); 
-                            client.print(F("</td><td id='ds2438_temp")); client.print(i + 1); client.print(F("'></td><td id='ds2438_vad")); 
-                            client.print(i + 1); client.print(F("'></td><td id='ds2438_vsens")); client.print(i + 1); 
-                            client.print(F("'></td><td><input type='text' maxlength='30' id='alias_ds2438_")); client.print(i + 1); 
-                            client.print(F("' name='alias_ds2438_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("<tr><td title=\"Modbus reg "));
+                            if (i == 0) {
+                                client.print(F("19-21 (Temp, Vad, Vsens)")); // První DS2438 senzor
+                            } else {
+                                client.print(F("46 (Sensor "));
+                                client.print(i + 1);
+                                client.print(F(")")); // Další senzory v registru 46
+                            }
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" 1w SERIAL_NUMBER Temp Vad Vsens'\">DS2438-"));
+                            client.print(i + 1);
+                            client.print(F("</td><td id='ds2438_sn"));
+                            client.print(i + 1);
+                            client.print(F("'>"));
+                            client.print(oneWireAddressToString(sensors2438[i]));
+                            client.print(F("</td><td id='ds2438_temp"));
+                            client.print(i + 1);
+                            client.print(F("'></td><td id='ds2438_vad"));
+                            client.print(i + 1);
+                            client.print(F("'></td><td id='ds2438_vsens"));
+                            client.print(i + 1);
+                            client.print(F("'></td><td><input type='text' maxlength='30' id='alias_ds2438_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_ds2438_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_DS2438 + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); client.print(F("' onchange='sendCommand(\"alias_ds2438_")); 
-                            client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_ds2438_"));
+                            client.print(i + 1);
+                            client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</tbody></table></td><td width='50%'><h3>1-Wire Sensors DS18B20</h3><table class='onewire-table' id='ds18b20Table'><tbody>"));
                         for (int i = 0; i < DS18B20count; i++) {
-                            client.print(F("<tr><td>DS18B20-")); client.print(i + 1); client.print(F("</td><td id='ds18b20_sn")); 
-                            client.print(i + 1); client.print(F("'>")); client.print(oneWireAddressToString(sensors18B20[i])); 
-                            client.print(F("</td><td id='ds18b20_temp")); client.print(i + 1); 
-                            client.print(F("'></td><td><input type='text' maxlength='30' id='alias_ds18b20_")); client.print(i + 1); 
-                            client.print(F("' name='alias_ds18b20_")); client.print(i + 1); client.print(F("' value='")); 
+                            client.print(F("<tr><td title=\"Modbus reg "));
+                            client.print(47 + i); // Registry 47-57 pro DS18B20
+                            client.print(F("\nUDP: 'rail"));
+                            client.print(boardAddress);
+                            client.print(F(" 1w SERIAL_NUMBER Temp'\">DS18B20-"));
+                            client.print(i + 1);
+                            client.print(F("</td><td id='ds18b20_sn"));
+                            client.print(i + 1);
+                            client.print(F("'>"));
+                            client.print(oneWireAddressToString(sensors18B20[i]));
+                            client.print(F("</td><td id='ds18b20_temp"));
+                            client.print(i + 1);
+                            client.print(F("'></td><td><input type='text' maxlength='30' id='alias_ds18b20_"));
+                            client.print(i + 1);
+                            client.print(F("' name='alias_ds18b20_"));
+                            client.print(i + 1);
+                            client.print(F("' value='"));
                             EEPROM.get(EEPROM_ALIAS_DS18B20 + i * 41, tempAlias);
-                            client.print(urlDecode(tempAlias)); client.print(F("' onchange='sendCommand(\"alias_ds18b20_")); 
-                            client.print(i + 1); client.print(F("\",encodeURIComponent(this.value))'>"));
+                            client.print(urlDecode(tempAlias));
+                            client.print(F("' onchange='sendCommand(\"alias_ds18b20_"));
+                            client.print(i + 1);
+                            client.print(F("\",encodeURIComponent(this.value))'>"));
                             client.println(F("</td></tr>"));
                         }
                         client.println(F("</tbody></table></td></tr></table></div></div></body></html>"));
@@ -1875,11 +2088,7 @@ void setHSSwitch(int hsswitch, int value) {
     if (hsswitch >= numOfHSSwitches) {
         return;
     }
-    if (value == 0 || value == 1) {
-        digitalWrite(HSSwitchPins[hsswitch], value); 
-    } else if (value >= 2 && value <= 255) {
-        analogWrite(HSSwitchPins[hsswitch], value); 
-    }
+    analogWrite(HSSwitchPins[hsswitch], value); 
 }
 
 // Set Low-Side switch state or PWM
@@ -1887,14 +2096,10 @@ void setLSSwitch(int lsswitch, int value) {
     if (lsswitch >= numOfLSSwitches) {
         return;
     }
-    if (lsswitch == 3 && value >= 2 && value <= 255) { // Pin 18 (LSS 4) nepodporuje PWM
-        dbg(F("Warning: LSS 4 (pin 18) does not support PWM, ignoring value "));
-        dbgln(String(value));
-        return;
-    }
-    if (value == 0 || value == 1) {
-        digitalWrite(LSSwitchPins[lsswitch], value); // Binární zapnutí/vypnutí
-    } else if (value >= 2 && value <= 255) {
+    if (lsswitch == 3) {
+        if (value > 0) { digitalWrite(LSSwitchPins[lsswitch], 1); 
+        } else { digitalWrite(LSSwitchPins[lsswitch], 0); }
+    } else {
         analogWrite(LSSwitchPins[lsswitch], value); // Nastavit PWM
     }
 }

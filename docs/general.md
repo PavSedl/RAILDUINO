@@ -12,7 +12,7 @@ The product does not belong to municipal waste and is subject to separate collec
 ### 1.2 Safety warnings
 
 ![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<div style="text-align: justify;">
+<div style="text-align: justify; clear:right;">
 To prevent electrical shock and fire,
 follow these safety instructions and guidelines. Do not exceed the
 technical parameters and use the device according to the following

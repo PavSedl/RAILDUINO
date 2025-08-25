@@ -23,7 +23,7 @@ by the manufacturer may undermine the protection provided by the device.
 Do not connect the device to the power supply (dangerous voltage) unless
 it is being installed. Repairs of the module can be carried out only by
 the manufacturer.
-</div>
+</div>  
 ![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
 <div style="text-align: justify;">
 In an applications with the connection

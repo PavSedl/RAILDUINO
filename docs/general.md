@@ -24,7 +24,7 @@ Do not connect the device to the power supply (dangerous voltage) unless
 it is being installed. Repairs of the module can be carried out only by
 the manufacturer.
 </div>  
-![](media/warning_sign.jpeg){: style="float: left; margin: 10px 20px 0 0; max-width: 25px;" }
+![](media/warning_sign.jpeg){: style="float: left; margin: 20px 20px 0 0; max-width: 25px;" }
 <div style="text-align: justify;">
 In an applications with the connection
 of main voltage of 230V to the output terminals of the device a

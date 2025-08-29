@@ -1,129 +1,76 @@
-## GENERAL
+## Safety warnings
 
-### 1.1 Symbols used
+!!! Warning "Common safety warnings"
+    
+    To prevent electrical shock or fire, follow these safety instructions and guidelines.
+	Do not exceed the specified technical parameters and operate the device only as described below.
+	
+	Read these instructions carefully before using the device. The device must be installed solely by a qualified technician.
+	Using the device in any manner other than that recommended by the manufacturer may compromise the safety protections provided by the device.
+	
+	Do not connect the device to the power supply (hazardous voltage) until installation is complete.
+	
+	Repairs to the device may only be performed by the manufacturer.
 
-![Warning Sign](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-A warning sign, for safe use these instructions must be followed  
-![CE Sign](media/CE_sign.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-CE marking, certifies compliance of the product with the legal requirements  
-![wee_symbol](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-The product does not belong to municipal waste and is subject to separate collection  
+!!! Warning "Installation safety warnings"
 
-### 1.2 Safety warnings
+	When connecting the device to a main voltage of 230V at the output terminals,
+	ensure sufficient distance or insulation between wires, clamps, and the surrounding
+	environment to maintain protection against electric shock. The output terminals, 
+	located behind the device's front cover, may carry hazardous voltage.
+	
+	In the Czech Republic, the device may only be installed by a qualified person 
+	(at minimum, a person certified under Act No. 250/2021 Coll.) who has familiarized
+	themselves with these instructions. The device must not be used in any manner
+	other than as specified in these instructions.
+	
+	To prevent the risk of electrical injury or fire, do not exceed the device's
+	maximum operating parameters, particularly the range of operational temperatures,
+	which may be affected by heat from connected or nearby technological equipment.
+	
+	Protect the device from direct sunlight, dust, high temperatures, mechanical vibrations,
+	impacts, rain, and high humidity. If the ambient temperature exceeds the specified limit,
+	adequate ventilation must be ensured.
 
-![](media/warning_sign.jpeg){: style="float: left; margin: 0 20px 0 0; max-width: 25px;" }
-<div style="text-align: justify; clear:right;">
-To prevent electrical shock and fire,
-follow these safety instructions and guidelines. Do not exceed the
-technical parameters and use the device according to the following
-description. Read the instructions carefully before putting the device
-into operation. The device should be installed only by a qualified
-technician. Use of the device in any other way than the way recommended
-by the manufacturer may undermine the protection provided by the device.
-Do not connect the device to the power supply (dangerous voltage) unless
-it is being installed. Repairs of the module can be carried out only by
-the manufacturer.
-</div>  
-![](media/warning_sign.jpeg){: style="float: left; margin: 17px 20px 0 0; max-width: 25px;" }
-<div style="text-align: justify;">
-In an applications with the connection
-of main voltage of 230V to the output terminals of the device a
-sufficient distance or insulation from the wires, clamps and enclosing
-against the surroundings must be provided, due to preservation of
-protection against electric shock. Behind the front cover of the
-device there are output terminals, where dangerous voltage can occur.
-</div><div style="text-align: justify; margin-top:20px;">
-In the Czech Republic only a qualified person is allowed to install the
-device (a person min. skilled according to Act No. 250/2021 Coll.
-after familiarization with these instructions. The device must not
-be used otherwise than in accordance with these instructions.
-</div><div style="text-align: justify; margin-top:20px;">
-To prevent risk of electical injury or fire the maximal operation
-parameters of the device must not be exceeded, particularly the range of
-operational temperatures due to heat impact from connected or other
-technological equipment nearby!
-</div><div style="text-align: justify; margin-top:20px;">
-Protect the device from a direct sun light, dust, high temperature,
-mechanical vibrations and impact, from rain and high moisture. In case
-of increased ambient temperature above the mentioned limit a ventilation
-must be ensured.
-</div>
+## Delivery and Packaging
+The product is packaged in protective electrostatic wrapping and placed in a cardboard box.
+During transport, the product must not be exposed to direct rain, vibrations, or impacts.
 
-### 1.3 Delivery and packaging description
-<div style="text-align: justify;">
-The product is wrapped in a protective electrostatic packaging and
-placed in a cardboard box. The product must not be exposed to direct
-rain, vibrations and impacts during the transport.
-</div>
+## Storage
+The product must be stored in dry, non-condensing environments with temperatures ranging from -40°C to +85°C.
 
-### 1.4 Storage
-<div style="text-align: justify;">
-The products are stored in dry non-condensing areas with temperature -40
-up to +85 °C.
-</div>
+## Commisioning
+The device may only be installed by qualified technicians who are familiar with the technical
+ specifications, warnings, and instructions and are capable of following them. If you have any
+ doubts about the proper handling of the module, contact your local distributor or the manufacturer.
 
-### 1.5 Installation and commisioning
-<div style="text-align: justify;">
-The device should be installed only by technicians, who are acquainted
-with the technical terms, warnings and instructions and who are able to
-adhere to these instructions. If there are any doubts regarding the
-right handling with the module, do not hesitate to contact the local
-distributor or the manufacturer.
-</div><div style="text-align: justify;margin-top:20px;">
-Mounting and connection of the device should meet the national
-legislation governing installations of electric materials, i. e.
-diameter of conductors, protective fuses and positions. The Railduino
-Module is intended to be mount on the DIN rail in compliance with the
-standard EN 60715 or the PR-TS 35 type.
-</div><div style="text-align: justify;margin-top:20px;">
-When installing, commissioning, operating and during maintenance pay
-attention to the instructions mentioned in the chapter 4.
-</div>
+The mounting and connection of the device must comply with national regulations governing electrical
+ installations, including the diameter of conductors, protective fuses, and positioning. 
+ The Railduino Module is designed to be mounted on a DIN rail in accordance with EN 60715 or PR-TS 35 standards.
 
-### 1.6 Spare parts
-<div style="text-align: justify;">
-Each compact part of the product, for which no special procedures or
-technological operations are necessary when exchanging, can be also
-ordered as a spare part.
-</div>
+When installing, commissioning, operating, or performing maintenance, follow the instructions provided in [Chapter 3](installation.md)
 
-### 1.7 Repairs
-<div style="text-align: justify;">
-The products are repaired by the manufacturer. For repair the products
-are sent in a packaging, which ensures shock absorbtion and protects
-against damage during transportation.
-</div>
+## Spare Parts
+Any component of the product that can be replaced without requiring special procedures or technical operations is available as a spare part.
 
-### 1.8 Warranty
-<div style="text-align: justify;">
-The product is covered by 2 years warranty from the date of delivery
-specified on the delivery note. The manufacturer warrants the
-technical and operation parameters of the products to the extent of
-valid documentation. The warranty period begins from the date of
-taking over the goods by the buyer or by a carrier. The manufacturer
-is not liable for defects caused by improper storage, improper
-external connections, external factors, particularly by quantities of
-inadmissible sizes, unqualified mounting, incorrect adjustment,
-improper use or normal wear and tear.
-</div>
+## Repairs
+Repairs are performed exclusively by the manufacturer. For repairs, the product must be shipped
+ in packaging that provides shock absorption and protection against damage during transportation.
 
-### 1.9 Termination of operation and disposal
-![](media/weee_symbol.png){: style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
-<div style="text-align: justify;">
-During termination of operation, the
-dismantling and disposal are possible to execute only after the power
-supply is disconnected.
-</div><div style="text-align: justify;">
-If the product Railduino is not further used, or should it be replaced
-with a new one, it is not disposed with the general household waste.
-Disposal of this product must be performed in a separate collection.
-Separate collection allows for recycling and reuse of used products
-and packaging materials. Reuse of recycled materials helps prevent
-environmental pollution and reduces the demand for raw materials. When
-buying new products, stores, local waste disposal or recycling plants
-will provide information on proper disposal of electronic waste.
-</div><div style="text-align: justify;margin-top:20px;">
-To avoid damage of the environment or human health from uncontrolled
-disposal, we recommend to contact the seller for information on safe
-disposal of this product.
-</div>
+## Warranty
+The product is covered by a two-year warranty from the date of delivery specified on the delivery note.
+ The manufacturer guarantees the technical and operational parameters of the product as outlined in the
+ valid documentation. The warranty period begins on the date the goods are received by the buyer or a carrier.
+ The manufacturer is not liable for defects caused by improper storage, incorrect external connections,
+ external factors (particularly excessive quantities), unqualified installation, incorrect adjustments,
+ improper use, or normal wear and tear.
+
+## Termination of Operation
+Dismantling and disposal of the device may only be carried out after the power supply has been disconnected.
+
+If the Railduino product is no longer in use or is to be replaced, it must not be disposed of with general household waste.
+ The product must be disposed of through separate collection systems. Separate collection enables recycling and reuse
+ of used products and packaging materials. Recycling helps prevent environmental pollution and reduces the demand for raw materials.
+ For information on proper disposal of electronic waste, contact your retailer, local waste disposal authority, or recycling facility.
+
+To prevent environmental damage or harm to human health from uncontrolled disposal, contact the seller for guidance on safe disposal of this product.

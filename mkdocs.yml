@@ -4,21 +4,26 @@ site_dir: site
 theme:
   name: material
   palette:
-    primary: teal
+    primary: indigo
+  icon:
+    admonition:
+      warning: octicons/alert-16
   features:
     - content.code.copy
     - content.tabs
     - search.suggest
+extra_css:
+    - stylesheets/extra.css
 nav:
   - Home: index.md
-  - 1 - General: general.md
-  - 2 - Description: description.md
-  - 3 - Installation: installation.md
-  - 4 - Connection: connection.md
-  - 5 - Modbus: modbus.md
-  - 6 - UDP: udp.md
-  - 7 - Examples - Modbus: modbus_examples.md
-  - 8 - Examples - UDP: udp_examples.md
+  - General: general.md
+  - Description: description.md
+  - Commisioning: installation.md
+  - Connection: connection.md
+  - Modbus: modbus.md
+  - UDP: udp.md
+  - Examples - Modbus: modbus_examples.md
+  - Examples - UDP: udp_examples.md
 plugins:
   - search
   - mermaid2
@@ -28,10 +33,12 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - admonition
+  - tables
   - pymdownx.details
   - pymdownx.superfences
-extra:
-  static_files:
-    - media
+  - pymdownx.blocks.caption
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 repo_url: https://github.com/PavSedl/RAILDUINO
 site_url: https://PavSedl.github.io/RAILDUINO

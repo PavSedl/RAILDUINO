@@ -1,4 +1,4 @@
-### 7.1 Digital inputs example
+## Digital inputs example
 
 When the change at the digital input is recognized – e.g. push button is pressed, Railduino module changes the state of the register bytes 13-15.  
 
@@ -18,7 +18,7 @@ For reading of any input of Railduino Module (digital, analog, 1wire), it is alw
 Example of using binary decoder block in Loxone Config
 <br>
 
-### 7.2 Relay outputs example
+## Relay outputs example
 
 ![](media/warning_sign.jpeg){ style="float: left; margin: 0 20px 0 0; max-width: 30px;" }
 *Max. permissible voltage at relay outputs is 230V AC!*  

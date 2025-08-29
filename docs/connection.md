@@ -1,31 +1,35 @@
-### 4.1 Typical connection
+## Typical connection
 
-![](media/basic_conn.png){style="margin: 20px 0 0 0;"}
+<figure markdown="span">
+![](media/basic_conn.png)  
+</figure>
 
-The Railduino module must be connected to a 12-24V DC power source. 
+The Railduino module requires a 12–24 V DC power supply for operation.  
 
-To fully utilize the module's functions, a connection to a LAN network is required. 
-An additional optional connection to RS485 is possible. 
+To fully utilize the module's functionality, connect it to a LAN network. An optional RS485 connection is also available.  
 
-When paired with a superior system (e.g., Loxone), communication can occur in two ways: A - via LAN, B - via RS485.
+When integrated with a supervisory system (e.g., Loxone), communication can be established in two ways (see the picture above):  
+- A - **LAN**  
+- B - **RS485**  
 
-RS485 bus can be terminated with the use of integrated terminator – *see [DIP switch settings](/RAILDUINO/installation/#32-dip-switch-settings)*
+The RS485 bus can be terminated using the integrated terminator.  
+Refer to the DIP switch settings for configuration details - *see [DIP switch settings](/RAILDUINO/installation/#32-dip-switch-settings)*
 
 
-### 4.2 Communication settings
+## Communication settings
 
 Default communication settings of the Railduino module:
 
-#### LAN network  
+### LAN network  
 
 - UDP incoming port 55555  
 - UDP outgoing port 44444
 - MODBUS TCP port 502  
 - IP address - dynamic – DHCP server must be present
 
-#### RS485 serial bus  
+### RS485 serial bus  
 
-- Communication speed adjustable via webserver - default 115200Bd
+- Communication speed adjustable via webserver - default 115200 Bd
 - Number of data bits 8  
 - Number of stop bits 1  
 - Parity none

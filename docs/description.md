@@ -1,45 +1,41 @@
-### 2.1 Concept
-The Railduino module comprises of the following basic parts:
+## Basic Concept
+The Railduino module consists of the following main components:
 
-#### Arduino MEGA 2560 R3
-<p style="text-align: justify;">
-A printed circuit board with a microcontroller in form of an 8-bit processor ATmega 2560 with the 
-frequency of 16 MHz, known as Arduino MEGA 2560 -- an open-source project -- more can be found on http://arduino.cc/.
-</p>
+:simple-arduino: &nbsp; **Arduino MEGA 2560 R3**  
+A printed circuit board featuring an 8-bit ATmega2560 microcontroller operating at a frequency of 16 MHz, 
+known as the Arduino MEGA 2560, an open-source project. For more information, visit [Arduino Official Site](https://arduino.cc)
 
-#### Railduino shield
-<p style="text-align: justify;">
-Main PCB board enabling connection of all the outside sensors and actuators to the controller, which adjust the signals so that the microcontroller can read or control them.
-In addition, this board ensures all power supply and communication.
-</p>
+:fontawesome-solid-microchip: &nbsp; **Railduino shield**  
+The primary PCB enables the connection of external sensors and actuators to the controller, conditioning 
+signals so that the microcontroller can read or control them. Additionally, this board provides power supply and communication functionality.
 
-#### Ethernet shield
-<p style="text-align: justify;">
-An additional (optional) PCB which offers a possibility to connect the whole system to the Ethernet network.
-When this function is used then the Railduino module is additionally equipped with the headers connectors between shield and Railduino shield.
-</p>
+:material-ethernet: &nbsp; **Ethernet shield**  
+An optional PCB that enables connection to an Ethernet network. When this feature is used, the Railduino
+ module is equipped with header connectors between the Ethernet shield and the Railduino shield.
 
-![](media/Railduino_chunked.jpg){: style="margin: 0 0 0 120px; max-height:600px" }
+<figure markdown="span">
+![](media/Railduino_chunked.jpg){loading=lazy }
+</figure>
 
-### 2.2 Product Description
+## Product Description
 
-The Railduino module is a device designed to work with a superior control system (e.g., Loxone) as remote inputs/outputs.  
-It enables control of external equipment (e.g., lights, pumps, breakers) and reading values from inputs (e.g., push buttons, contacts).
+The Railduino module is designed to integrate with a supervisory control system (e.g., Loxone) as remote inputs and outputs.
+ It enables control of external equipment (e.g., lights, pumps, breakers) and reading values from inputs (e.g., push buttons, contacts).
 
-#### Outputs / inputs:  
-- 24x optically isolated digital inputs, max. input voltage 24V DC
+### Outputs / inputs:  
+- 24x optically isolated digital inputs, input voltage 12-24V DC
 - 12x relay outputs with max. current 7A / 4A at 230V AC
-- 4x high-side switch (HSS) digital outputs - switching V+ voltage - max. 24V DC, 2A / channel
-- 4x low-side switch (LSS) digital outputs - switching GND - max. 24V DC, 2A / channel
+- 4x high-side switch (HSS) digital outputs - switching V+ voltage - max. 24V DC, 2A / channel / PWM
+- 4x low-side switch (LSS) digital outputs - switching GND - max. 24V DC, 2A / channel / PWM
 - 2x analog inputs (0-10V range), resolution 10 bits (0-1023) 
 - 2x analog outputs (0-10V range), resolution 8 bits (0-255)
 
-#### Communication:  
+### Communication:  
 - LAN connectivity - Modbus TCP / UDP
 - RS485 serial bus - Modbus RTU, gateway to LAN, baudrate selectable
 - 1-Wire bus - supports Maxim/Dallas DS18B20 or DS2438 (max. 10pcs)
 
-#### Other functions
+### Other functions:
 - webserver for settings
 - watchdog for processor, LAN
 - remote restart - SW and HW reset
@@ -51,4 +47,6 @@ It enables control of external equipment (e.g., lights, pumps, breakers) and rea
 - LED diodes - indication of operation
 - Reset button - restart of the module
 
-![](media/description.jpeg){ style="margin: 20px 0 0 0" }
+<figure markdown="span">
+![](media/description.jpeg){ loading=lazy}
+</figure>

@@ -67,7 +67,7 @@ const char docsContentModbus[] PROGMEM = R"=====(
 MODBUS TCP commands: FC1 - FC16
 MODBUS RTU commands: FC3, FC6, FC16
 
-Registers are 2 bytes (16 bits) - only lowest significant byte (LSB) is used
+Registers are 2 bytes (16 bits) - only least significant byte (LSB) is used
     
 )=====";
 
@@ -89,8 +89,8 @@ register number (2 bytes)  description
 11 - LSB byte              analog output 1 (0-255)
 12 - LSB byte              analog output 2 (0-255)
 13 - bits 208-215          digital inputs 1-8
-14 - bits 216-223          digital inputs 9-16
-15 - bits 224-231          digital inputs 17-24
+14 - bits 224-231          digital inputs 9-16
+15 - bits 240-247          digital inputs 17-24
 16 - LSB byte              analog input 1 (0-1023)
 17 - LSB byte              analog input 2 (0-1023)
 18 - bit 288               reset 
@@ -1325,10 +1325,10 @@ void handleWebServer() {
                             client.print(F("<tr><td title=\"Modbus reg "));
                             if (i < 8) {
                                 client.print(F("13 - bit "));
-                                client.print(208 + i); // Bity 208-215 pro DI 1-8
+                                client.print(208 + i); 
                             } else {
                                 client.print(F("14 - bit "));
-                                client.print(216 + (i - 8)); // Bity 216-223 pro DI 9-12
+                                client.print(224 + (i - 8)); 
                             }
                             client.print(F("\nUDP: 'rail"));
                             client.print(boardAddress);
@@ -1357,10 +1357,10 @@ void handleWebServer() {
                             client.print(F("<tr><td title=\"Modbus reg "));
                             if (i < 16) {
                                 client.print(F("14 - bit "));
-                                client.print(216 + (i - 8)); // Bity 216-223 pro DI 9-16
+                                client.print(224 + (i - 8)); // Bity 216-223 pro DI 9-16
                             } else {
                                 client.print(F("15 - bit "));
-                                client.print(224 + (i - 16)); // Bity 224-231 pro DI 17-24
+                                client.print(240 + (i - 16)); // Bity 224-231 pro DI 17-24
                             }
                             client.print(F("\nUDP: 'rail"));
                             client.print(boardAddress);

@@ -1,29 +1,13 @@
-### 5.1 Modbus protocol
+# Modbus protocol
+!!! note "Modbus TCP and RTU"
+	- Modbus TCP is used for communication over LAN - functions FC: 1, 2, 3, 4, 5, 6, 15, 16
+	- Modbus RTU is used for communication over RS485 - functions FC: 3, 6, 16
 
-- Modbus TCP is used for communication over LAN - functions FC: 1, 2, 3, 4, 5, 6, 15, 16
-- Modbus RTU is used for communication over RS485 - functions FC: 3, 6, 16
+## Modbus register map
 
-<p style="text-align: justify;">
-The states of the digital inputs must be read in full bytes from the registers of the Railduino module
-</p>
-
-### 5.2 Loxone Modbus TCP settings
-
-![](media/lox_mod_sett_1.png){style="margin: 20px 0 20px 0; border:1px solid" }
-Insert new **Modbus server** and set IP and port in the Modbus server settings
-
-![](media/lox_mod_sett_2.png){style="margin: 20px 0 20px 0; border:1px solid" }
-Create new **Modbus device** - and set/leave the address "1" of the Modbus client (Railduino module)  
-This is NOT the physical address of the device!
-
-### 5.3 Loxone Modbus RTU settings
-
-![](media/lox_mod_sett_3.png){style="margin: 20px 0 20px 0; border:1px solid" }  
-Insert new **Modbus device** and set the baudrate, stop bits and parity of the device (Railduino module)  
-
-### 5.3 Modbus register map
-
-Modbus register map (1 register = 1 byte = 8 bits)
+!!! warning "Modbus register map structure"
+	Each Modbus register consists of 2 bytes (16 bits). Only the least significant byte (LSB) is used to store values.  
+	Ensure that values are written to and read from the least significant byte to avoid data misalignment.  
    
 >      0: relay outputs 1-8  
 >      1: relay outputs 9-12  
@@ -52,5 +36,22 @@ Modbus register map (1 register = 1 byte = 8 bits)
 >      47-57: DS18B20 Temperature (up to 10 sensors) (value multiplied by 100)
 
 
+## Loxone Modbus TCP settings
 
+!!! tip "Insert new **Modbus server** and set IP and port in the Modbus server settings"
+	<figure markdown="span">
+	![](media/lox_mod_sett_1.png)
+	</figure>
 
+!!! tip "Create new **Modbus device** - and set/leave the address "1" of the Modbus client (Railduino module)"
+	<figure markdown="span">
+	![](media/lox_mod_sett_2.png)
+	</figure>
+	This is NOT the physical address of the device
+
+## Loxone Modbus RTU settings
+
+!!! tip "Insert new **Modbus device** and set the baudrate, stop bits and parity of the device (Railduino module)"
+	<figure markdown="span">
+	![](media/lox_mod_sett_3.png)  
+	</figure>

@@ -1,0 +1,156 @@
+:root {
+  --md-admonition-icon--led-outline: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>led-outline</title><path d="M12,6A4,4 0 0,0 8,10V16H6V18H9V23H11V18H13V23H15V18H18V16H16V10A4,4 0 0,0 12,6M12,8A2,2 0 0,1 14,10V15H10V10A2,2 0 0,1 12,8Z" /></svg>')
+}
+
+.md-typeset {
+    font-size: 14px;
+	text-align: justify;
+}
+
+/* Společné styly pro admonitions */
+.md-typeset .admonition.led-blue,
+.md-typeset details.led-blue,
+.md-typeset .admonition.led-green,
+.md-typeset details.led-green {
+    border-color: var(--color, transparent);
+}
+
+.md-typeset .led-blue > .admonition-title,
+.md-typeset .led-blue > summary,
+.md-typeset .led-green > .admonition-title,
+.md-typeset .led-green > summary {
+    background-color: var(--title-color); /* Decentně plné pozadí titulků */
+    color: black; /* Bílý text pro čitelnost */
+}
+
+.md-typeset .led-blue > .admonition-title::before,
+.md-typeset .led-blue > summary::before,
+.md-typeset .led-green > .admonition-title::before,
+.md-typeset .led-green > summary::before {
+    background-color: var(--icon-color, var(--color));
+    -webkit-mask-image: var(--md-admonition-icon--led-outline);
+    mask-image: var(--md-admonition-icon--led-outline);
+}
+
+/* Definice barev */
+.md-typeset .led-blue {
+    --color: rgb(0, 0, 255); /* Jemná modrá pro ohraničení */
+    --title-color: rgb(179, 229, 252); /* Jemná modrá pro titulky */
+    --icon-color: rgb(0, 0, 255); /* Ikona zůstává sytě modrá */
+}
+
+.md-typeset .led-green {
+    --color: rgb(0, 255, 0); /* Jemná zelená pro ohraničení */
+    --title-color: rgb(200, 230, 201); /* Jemná zelená pro titulky */
+    --icon-color: rgb(56, 142, 60); /* Ikona zůstává původní zelená */
+}
+
+/* Společné styly pro animované ikony */
+.blue-led-animation::before,
+.blue-led-on::before,
+.blue-led-off::before,
+.green-led-animation::before,
+.green-led-on::before,
+.green-led-off::before {
+    display: inline-block;
+    width: 1rem;
+    height: 1.2rem;
+    vertical-align: bottom;
+}
+
+/* Modrá LED animace */
+.blue-led-animation::before {
+    content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230000FF'><path d='M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4z'/></svg>");
+    animation: blue-led-blink 1.1s infinite;
+}
+
+@keyframes blue-led-blink {
+    0%, 90.9% {
+        content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230000FF'><path d='M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4z'/></svg>");
+    }
+    90.91%, 100% {
+        content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230000FF'><path d='M11,0v4h2V0h-2m7.3,2.29L15.24,5.29l1.41,1.41L19.7,3.71l-1.4-1.42M5.71,2.29L2.29,3.71l3,3L6.71,5.29l-1-1M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4M2,9v2h4V9H2m16,0v2h4V9h-4z'/></svg>");
+    }
+}
+
+.blue-led-on::before {
+    content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230000FF'><path d='M11,0v4h2V0h-2m7.3,2.29L15.24,5.29l1.41,1.41L19.7,3.71l-1.4-1.42M5.71,2.29L2.29,3.71l3,3L6.71,5.29l-1-1M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4M2,9v2h4V9H2m16,0v2h4V9h-4z'/></svg>");
+}
+
+.blue-led-off::before {
+    content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230000FF'><path d='M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4z'/></svg>");
+}
+
+/* Zelená LED animace */
+.green-led-animation::before {
+    content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23388E3C'><path d='M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4z'/></svg>");
+    animation: green-led-blink 1.1s infinite;
+}
+
+@keyframes green-led-blink {
+    0%, 90.9% {
+        content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23388E3C'><path d='M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4z'/></svg>");
+    }
+    90.91%, 100% {
+        content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23388E3C'><path d='M11,0v4h2V0h-2m7.3,2.29L15.24,5.29l1.41,1.41L19.7,3.71l-1.4-1.42M5.71,2.29L2.29,3.71l3,3L6.71,5.29l-1-1M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4M2,9v2h4V9H2m16,0v2h4V9h-4z'/></svg>");
+    }
+}
+
+.green-led-on::before {
+    content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23388E3C'><path d='M11,0v4h2V0h-2m7.3,2.29L15.24,5.29l1.41,1.41L19.7,3.71l-1.4-1.42M5.71,2.29L2.29,3.71l3,3L6.71,5.29l-1-1M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4M2,9v2h4V9H2m16,0v2h4V9h-4z'/></svg>");
+}
+
+.green-led-off::before {
+    content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23388E3C'><path d='M12,6a4,4 0 0,0-4,4v6H6v2h3v5h2v-5h2v5h2v-5h3v-2h-2v-6a4,4 0 0,0-4-4z'/></svg>");
+}
+
+.admonition {
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+.marginleft {
+	margin: 0 5px;
+}
+
+.md-typeset h1 {
+    font-size: 1,5rem;
+    font-weight: 500;
+    color: #1565c0; /* Modrá barva */
+    padding-bottom: 0rem;
+}
+
+.md-typeset h2 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1565c0; /* Modrá barva */
+    border-bottom: 2px solid #ddd; /* Spodní ohraničení */
+    padding-bottom: 0.3rem;
+}
+
+.md-typeset h3 {
+    font-size: 0,5rem;
+    font-weight: 500;
+    color: #1565c0; /* Modrá barva */
+    padding-bottom: 0;
+}
+
+.md-typeset__table table {
+    table-layout: fixed !important; /* Pevné rozložení tabulky */
+    width: 100% !important; /* Tabulka vyplní rodiče */
+    border-collapse: collapse !important; /* Zajišťuje správné ohraničení */
+}
+
+.md-typeset__table table th,
+.md-typeset__table table td {
+    border: 0px solid blue !important;
+    padding: 5px !important;
+    width: 75px !important;
+    min-width: 76px !important;
+    box-sizing: border-box !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+	text-align: center !important;		
+}
+

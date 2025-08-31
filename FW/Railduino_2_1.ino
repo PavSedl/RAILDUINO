@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "25082025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "31082025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -89,8 +89,8 @@ register number (2 bytes)  description
 11 - LSB byte              analog output 1 (0-255)
 12 - LSB byte              analog output 2 (0-255)
 13 - bits 208-215          digital inputs 1-8
-14 - bits 224-231          digital inputs 9-16
-15 - bits 240-247          digital inputs 17-24
+14 - bits 216-223          digital inputs 9-16
+15 - bits 224-231          digital inputs 17-24
 16 - LSB byte              analog input 1 (0-1023)
 17 - LSB byte              analog input 2 (0-1023)
 18 - bit 288               reset 
@@ -1325,10 +1325,10 @@ void handleWebServer() {
                             client.print(F("<tr><td title=\"Modbus reg "));
                             if (i < 8) {
                                 client.print(F("13 - bit "));
-                                client.print(208 + i); 
+                                client.print(208 + i); // Bity 208-215 pro DI 1-8
                             } else {
                                 client.print(F("14 - bit "));
-                                client.print(224 + (i - 8)); 
+                                client.print(216 + (i - 8)); // Bity 216-223 pro DI 9-12
                             }
                             client.print(F("\nUDP: 'rail"));
                             client.print(boardAddress);
@@ -1357,10 +1357,10 @@ void handleWebServer() {
                             client.print(F("<tr><td title=\"Modbus reg "));
                             if (i < 16) {
                                 client.print(F("14 - bit "));
-                                client.print(224 + (i - 8)); // Bity 216-223 pro DI 9-16
+                                client.print(216 + (i - 8)); // Bity 216-223 pro DI 9-16
                             } else {
                                 client.print(F("15 - bit "));
-                                client.print(240 + (i - 16)); // Bity 224-231 pro DI 17-24
+                                client.print(224 + (i - 16)); // Bity 224-231 pro DI 17-24
                             }
                             client.print(F("\nUDP: 'rail"));
                             client.print(boardAddress);
@@ -2267,25 +2267,31 @@ void processCommands() {
             setRelay(i, bitRead(Mb.MbData[relOut2Byte], i-8));
         }
     }
-    for (int i = 0; i < numOfHSSwitches; i++) {
+   for (int i = 0; i < numOfHSSwitches; i++) {
         int bitState = bitRead(Mb.MbData[hssLssByte], i);
-        if (bitState == 1 && Mb.MbData[hssPWM1Byte + i] == 0) {
-            Mb.MbData[hssPWM1Byte + i] = 255;
-        } else if (bitState == 0) {
-            Mb.MbData[hssPWM1Byte + i] = 0;
+        int value;
+        if (bitState == 1) {
+            Mb.MbData[hssPWM1Byte + i] = 255; // Nastavit PWM na 255 při bitState = 1
+            value = 255;
+        } else {
+            value = Mb.MbData[hssPWM1Byte + i]; // Použít hodnotu z PWM registru
         }
-        int value = (bitState == 1) ? Mb.MbData[hssPWM1Byte + i] : 0;
-        setHSSwitch(i, value);
+        if (value >= 0 && value <= 255) {
+            setHSSwitch(i, value);
+        }
     }
     for (int i = 0; i < numOfLSSwitches; i++) {
         int bitState = bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches);
-        if (bitState == 1 && Mb.MbData[lssPWM1Byte + i] == 0) {
-            Mb.MbData[lssPWM1Byte + i] = 255;
-        } else if (bitState == 0) {
-            Mb.MbData[lssPWM1Byte + i] = 0;
+        int value;
+        if (bitState == 1) {
+            Mb.MbData[lssPWM1Byte + i] = 255; // Nastavit PWM na 255 při bitState = 1
+            value = 255;
+        } else {
+            value = Mb.MbData[lssPWM1Byte + i]; // Použít hodnotu z PWM registru
         }
-        int value = (bitState == 1) ? Mb.MbData[lssPWM1Byte + i] : 0;
-        setLSSwitch(i, value);
+        if (value >= 0 && value <= 255 && i != 3) { // LSS4 nemá PWM
+            setLSSwitch(i, value);
+        }
     }
     for (int i = 0; i < numOfAnaOuts; i++) {
         setAnaOut(i, Mb.MbData[anaOut1Byte+i]);

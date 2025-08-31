@@ -14,7 +14,7 @@ An optional PCB that enables connection to an Ethernet network. When this featur
  module is equipped with header connectors between the Ethernet shield and the Railduino shield.
 
 <figure markdown="span">
-![](media/Railduino_chunked.jpg){loading=lazy }
+![](media/Railduino_chunked.png){loading=lazy }
 </figure>
 
 ## Product Description
@@ -22,7 +22,7 @@ An optional PCB that enables connection to an Ethernet network. When this featur
 The Railduino module is designed to integrate with a supervisory control system (e.g., Loxone) as remote inputs and outputs.
  It enables control of external equipment (e.g., lights, pumps, breakers) and reading values from inputs (e.g., push buttons, contacts).
 
-### Outputs / inputs:  
+### Outputs / inputs  
 - 24x optically isolated digital inputs, input voltage 12-24V DC
 - 12x relay outputs with max. current 7A / 4A at 230V AC
 - 4x high-side switch (HSS) digital outputs - switching V+ voltage - max. 24V DC, 2A / channel / PWM
@@ -30,12 +30,12 @@ The Railduino module is designed to integrate with a supervisory control system 
 - 2x analog inputs (0-10V range), resolution 10 bits (0-1023) 
 - 2x analog outputs (0-10V range), resolution 8 bits (0-255)
 
-### Communication:  
+### Communication  
 - LAN connectivity - Modbus TCP / UDP
 - RS485 serial bus - Modbus RTU, gateway to LAN, baudrate selectable
 - 1-Wire bus - supports Maxim/Dallas DS18B20 or DS2438 (max. 10pcs)
 
-### Other functions:
+### Other functions
 - webserver for settings
 - watchdog for processor, LAN
 - remote restart - SW and HW reset

@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "31082025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "01092025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -1213,21 +1213,23 @@ void handleWebServer() {
                         // Second row: HSS and LSS Status
                         client.println(F("<table class='inner'><tr><td><h3>High-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfHSSwitches; i++) {
-                            client.print(F("<tr><td title=\"Modbus reg 2 - bit "));
-                            client.print(32 + i); // Bity 32-35 pro HSS 1-4
-                            client.print(F("\nUDP: 'rail"));
+                            client.print(F("<tr><td title=\"Modbus Register 2 - Bit "));
+                            client.print(32 + i); // Bity 32-35 pro HSS 1-4 pro ON/OFF
+                            client.print(F(" (ON/OFF)\nModbus Register "));
+                            client.print(3 + i); // Bity 3-6 pro HSS PWM 1-4
+                            client.print(F(" - PWM Value (0-255)\nUDP: rail"));
                             client.print(boardAddress);
                             client.print(F(" ho"));
                             client.print(i + 1);
-                            client.print(F(" on'\nUDP: 'rail"));
+                            client.print(F(" on\nUDP: rail"));
                             client.print(boardAddress);
                             client.print(F(" ho"));
                             client.print(i + 1);
-                            client.print(F(" off'\nUDP: 'rail"));
+                            client.print(F(" off\nUDP: rail"));
                             client.print(boardAddress);
                             client.print(F(" ho"));
                             client.print(i + 1);
-                            client.print(F("_pwm VALUE'\">HSS "));
+                            client.print(F("_pwm VALUE\">HSS "));
                             client.print(i + 1);
                             client.print(F("</td><td>"
                                         "<input type='checkbox' id='hss"));
@@ -1237,7 +1239,11 @@ void handleWebServer() {
                             client.print(F("' onchange='sendCommand(\"hss"));
                             client.print(i + 1);
                             client.print(F("\",this.checked?255:0)'"));
-                            if (bitRead(Mb.MbData[hssLssByte], i)) client.print(F(" checked"));
+                            if (bitRead(Mb.MbData[hssLssByte], i)) {
+                                client.print(F(" checked class='status-on'"));
+                            } else {
+                                client.print(F(" class='status-off'"));
+                            }
                             client.print(F("></td><td><input type='number' id='hssPWM"));
                             client.print(i + 1);
                             client.print(F("' name='hssPWM"));
@@ -1261,23 +1267,31 @@ void handleWebServer() {
                         }
                         client.println(F("</table></td></tr><tr><td><h3>Low-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfLSSwitches; i++) {
-                            client.print(F("<tr><td title=\"Modbus reg 2 - bit "));
-                            client.print(36 + i); // Bity 36-39 pro LSS 1-4
-                            client.print(F("\nUDP: 'rail"));
-                            client.print(boardAddress);
-                            client.print(F(" lo"));
-                            client.print(i + 1);
-                            client.print(F(" on'\nUDP: 'rail"));
-                            client.print(boardAddress);
-                            client.print(F(" lo"));
-                            client.print(i + 1);
-                            client.print(F(" off'"));
+                            client.print(F("<tr><td title=\"Modbus Register 2 - Bit "));
+                            client.print(36 + i); // Bity 36-39 pro LSS 1-4 pro ON/OFF
+                            client.print(F(" (ON/OFF)"));
                             if (i != 3) { // PWM není podporováno pro LSS4
-                                client.print(F("\nUDP: 'rail"));
+                                client.print(F("\nModbus Register "));
+                                client.print(7 + i); // Bity 7-9 pro LSS PWM 1-3
+                                client.print(F(" - PWM Value (0-255)"));
+                            } else {
+                                client.print(F("\nModbus Register 10 - Value (0 or 255)")); // LSS4 bez PWM
+                            }
+                            client.print(F("\nUDP: rail"));
+                            client.print(boardAddress);
+                            client.print(F(" lo"));
+                            client.print(i + 1);
+                            client.print(F(" on\nUDP: rail"));
+                            client.print(boardAddress);
+                            client.print(F(" lo"));
+                            client.print(i + 1);
+                            client.print(F(" off"));
+                            if (i != 3) { // PWM není podporováno pro LSS4
+                                client.print(F("\nUDP: rail"));
                                 client.print(boardAddress);
                                 client.print(F(" lo"));
                                 client.print(i + 1);
-                                client.print(F("_pwm VALUE'"));
+                                client.print(F("_pwm VALUE"));
                             }
                             client.print(F("\">LSS "));
                             client.print(i + 1);
@@ -1289,7 +1303,11 @@ void handleWebServer() {
                             client.print(F("' onchange='sendCommand(\"lss"));
                             client.print(i + 1);
                             client.print(F("\",this.checked?255:0)'"));
-                            if (bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches)) client.print(F(" checked"));
+                            if (bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches)) {
+                                client.print(F(" checked class='status-on'"));
+                            } else {
+                                client.print(F(" class='status-off'"));
+                            }
                             client.print(F("></td><td>"));
                             if (i != 3) {
                                 client.print(F("<input type='number' id='lssPWM"));

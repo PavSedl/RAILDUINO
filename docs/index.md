@@ -8,6 +8,8 @@
 [Description](./description.md)  
 [Commisioning](./installation.md)  
 [Connection](./connection.md)  
-[Modbus](./modbus.md)  
-[UDP](./udp.md)  
+[Modbus settings](./modbus.md)  
+[UDP settings](./udp.md)  
+[Loxone Modbus Examples](./modbus_examples.md)  
+[Loxone UDP Examples](./udp_examples.md) 
 

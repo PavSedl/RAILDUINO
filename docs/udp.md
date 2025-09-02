@@ -1,5 +1,3 @@
-## User data protocol - UDP
-
 !!! note "Basic syntax"
 	>"rail" + [add.] + " " + "[cmd]" + [no.] + "[state]"  
 	
@@ -31,14 +29,14 @@ Signals / Inputs:
 
 ## Loxone UDP settings for inputs
 
-!!! tip "Insert new UDP virtual input for sensing inputs in Loxone Config and set the **UDP receive port** to 55555"
+!!! tip "Insert new UDP virtual input for sensing inputs in Loxone Config and set the UDP receive port "55555""
 	<figure markdown="span">
 	![](media/lox_udp_sett_1.png)
 	</figure> 
 
 ## Loxone UDP settings for outputs
 
-!!! tip "Insert new UDP virtual output and set the outcoming address /dev/udp/192.168.x.x/44444"
+!!! tip "Insert new UDP virtual output and set the address "/dev/udp/192.168.x.x/44444""
 	<figure markdown="span">
 	![](media/lox_udp_sett_2.png)
 	</figure> 

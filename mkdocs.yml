@@ -20,10 +20,10 @@ nav:
   - Description: description.md
   - Commisioning: installation.md
   - Connection: connection.md
-  - Modbus: modbus.md
-  - UDP: udp.md
-  - Examples - Modbus: modbus_examples.md
-  - Examples - UDP: udp_examples.md
+  - Modbus settings: modbus.md
+  - UDP settings: udp.md
+  - Loxone Examples - Modbus: modbus_examples.md
+  - Loxone Examples - UDP: udp_examples.md
 plugins:
   - search
   - mermaid2

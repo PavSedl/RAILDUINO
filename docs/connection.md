@@ -13,7 +13,7 @@ When integrated with a supervisory system (e.g., Loxone), communication can be e
 - B - **RS485**  
 
 The RS485 bus can be terminated using the integrated terminator.  
-Refer to the DIP switch settings for configuration details - *see [DIP switch settings](/RAILDUINO/installation/#32-dip-switch-settings)*
+Refer to the DIP switch settings for configuration details - *see [DIP switch settings](../installation/#32-dip-switch-settings)*
 
 
 ## Communication settings

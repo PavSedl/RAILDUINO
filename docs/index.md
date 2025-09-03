@@ -8,6 +8,7 @@
 [Description](./description.md)  
 [Commisioning](./installation.md)  
 [Connection](./connection.md)  
+[Webserver](./webserver.md)  
 [Modbus settings](./modbus.md)  
 [UDP settings](./udp.md)  
 [Loxone Modbus Examples](./modbus_examples.md)  

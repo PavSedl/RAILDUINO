@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "01092025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "03092025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -1132,7 +1132,7 @@ void handleWebServer() {
                         client.print(F("</td></tr><tr><td>Firmware version</td><td>"));
                         client.print(fwVer);
                         client.print(F("</td></tr><tr><td></td><td><tr><td></td><td></td></tr>"));
-                        client.print(F("</td></tr></table></td><td width='50%'><h3>Other settings</h3><table class='other-settings-table'><tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' max='600000' style='width:80px;' value='"));
+                        client.print(F("</td></tr></table></td><td width='50%'><h3>Configuration Settings</h3><table class='other-settings-table'><tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' max='600000' style='width:80px;' value='"));
                         client.print(String(oneWireCycle));
                         client.print(F("' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr><tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' max='600000' style='width:80px;' value='"));
                         client.print(String(anaInputCycle));
@@ -1140,7 +1140,7 @@ void handleWebServer() {
                         client.print(String(pulseSendCycle));
                         client.print(F("' onchange='sendCommand(\"pulseSendCycle\",this.value)'> ms</td></tr><tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='2000' max='600000' style='width:80px;' value='"));
                         client.print(String(checkInterval));
-                        client.print(F("' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr><tr><td>RS485 Baud Rate</td><td><input type='number' id='baudRate' style='width:80px;' value='"));
+                        client.print(F("' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr><tr><td>RS485 Baud Rate</td><td><input type='number' id='baudRate' min='1200' max='115200' style='width:80px;' value='"));
                         client.print(String(baudRate));
                         client.print(F("' onchange='sendCommand(\"baudRate\",this.value)'> Bd</td></tr>"));
                         client.print(F("<tr><td>Outputs control protocol</td><td><select id='useUDPctrl' onchange='sendCommand(\"useUDPctrl\",this.value)'>"));

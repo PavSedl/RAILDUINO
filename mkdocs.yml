@@ -25,6 +25,8 @@ nav:
   - UDP settings: udp.md
   - Loxone Examples - Modbus: modbus_examples.md
   - Loxone Examples - UDP: udp_examples.md
+  - FAQ: faq.md
+  - About: about.md
 plugins:
   - search
   - mermaid2

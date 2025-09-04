@@ -12,6 +12,10 @@ The webserver is accessible via HTTP and supports basic interaction with the mod
 
 Basic info about the module with the possibility to add **Description** of the module. Other settings are set to default values and can be changed as requested:
 
+<figure markdown="span">
+![](media/webserver_01.png)
+</figure>
+
 !!! info "Other settings values limitation"
 	1-wire Cycle - min.  **5s**, max  **60s**, default **30s**  
 	Analog Input Cycle - min.  **2s**, max  **60s**, default **10s**  
@@ -19,9 +23,10 @@ Basic info about the module with the possibility to add **Description** of the m
 	Ping DHCP Cycle - min.  **2s**, max  **60s**, default **10s**  
 	RS485 Baud Rate - min.  **1200 Bd**, max  **115200 Bd**, default **115200 Bd**   
 
-<figure markdown="span">
-![](media/webserver_01.png)
-</figure>
+!!! tip "When hovering with cursor over output - the tooltip with protocol info is displayed"
+	<figure markdown="span">
+	![](media/webserver_05.png)
+	</figure>
 
 ## Relays and HSS/LSS outputs
 

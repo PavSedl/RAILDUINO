@@ -13,4 +13,6 @@
 [UDP settings](./udp.md)  
 [Loxone Modbus Examples](./modbus_examples.md)  
 [Loxone UDP Examples](./udp_examples.md) 
+[FAQ](./faq.md) 
+[About](./about.md) 
 

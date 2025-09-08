@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "03092025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "07092025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -92,7 +92,7 @@ register number (2 bytes)  description
 14 - bits 216-223          digital inputs 9-16
 15 - bits 224-231          digital inputs 17-24
 16 - LSB byte              analog input 1 (0-1023)
-17 - LSB byte              analog input 2 (0-1023)
+17 - LSB byte              analog input 2 (0-1023)  
 18 - bit 288               reset 
 19 - LSB byte              1st DS2438 Temp (value multiplied by 100)
 20 - LSB byte              1st DS2438 Vad (value multiplied by 100)
@@ -2287,26 +2287,26 @@ void processCommands() {
     }
    for (int i = 0; i < numOfHSSwitches; i++) {
         int bitState = bitRead(Mb.MbData[hssLssByte], i);
-        int value;
-        if (bitState == 1) {
-            Mb.MbData[hssPWM1Byte + i] = 255; // Nastavit PWM na 255 při bitState = 1
-            value = 255;
-        } else {
-            value = Mb.MbData[hssPWM1Byte + i]; // Použít hodnotu z PWM registru
+        int pwmValue = Mb.MbData[hssPWM1Byte + i];
+        if (bitState == 1 && (pwmValue == 0 || pwmValue == 255)) {
+            Mb.MbData[hssPWM1Byte + i] = 255;
+        } else if (bitState == 0) {
+            Mb.MbData[hssPWM1Byte + i] = 0;
         }
+        int value = (bitState == 1) ? Mb.MbData[hssPWM1Byte + i] : 0;
         if (value >= 0 && value <= 255) {
             setHSSwitch(i, value);
         }
     }
     for (int i = 0; i < numOfLSSwitches; i++) {
         int bitState = bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches);
-        int value;
-        if (bitState == 1) {
-            Mb.MbData[lssPWM1Byte + i] = 255; // Nastavit PWM na 255 při bitState = 1
-            value = 255;
-        } else {
-            value = Mb.MbData[lssPWM1Byte + i]; // Použít hodnotu z PWM registru
+        int pwmValue = Mb.MbData[lssPWM1Byte + i];
+        if (bitState == 1 && (pwmValue == 0 || pwmValue == 255)) {
+            Mb.MbData[lssPWM1Byte + i] = 255; 
+        } else if (bitState == 0) {
+            Mb.MbData[lssPWM1Byte + i] = 0;
         }
+        int value = (bitState == 1) ? Mb.MbData[lssPWM1Byte + i] : 0;
         if (value >= 0 && value <= 255 && i != 3) { // LSS4 nemá PWM
             setLSSwitch(i, value);
         }

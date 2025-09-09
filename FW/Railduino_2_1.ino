@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "07092025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "08092025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -2307,7 +2307,7 @@ void processCommands() {
             Mb.MbData[lssPWM1Byte + i] = 0;
         }
         int value = (bitState == 1) ? Mb.MbData[lssPWM1Byte + i] : 0;
-        if (value >= 0 && value <= 255 && i != 3) { // LSS4 nemá PWM
+        if (value >= 0 && value <= 255) {
             setLSSwitch(i, value);
         }
     }
@@ -2391,7 +2391,7 @@ void processCommands() {
                             if (cmd.startsWith(cmdBuffer)) {
                                 String pwmValue = cmd.substring(strlen(cmdBuffer));
                                 int value = pwmValue.toInt();
-                                if (value >= 0 && value <= 255 && i != 3) {
+                                if (value >= 0 && value <= 255) {
                                     Mb.MbData[lssPWM1Byte + i] = value;
                                     bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (value > 0) ? 1 : 0);
                                     setLSSwitch(i, value);

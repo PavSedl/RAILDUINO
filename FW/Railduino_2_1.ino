@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "08092025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "07102025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -2118,7 +2118,7 @@ void setLSSwitch(int lsswitch, int value) {
         if (value > 0) { digitalWrite(LSSwitchPins[lsswitch], 1); 
         } else { digitalWrite(LSSwitchPins[lsswitch], 0); }
     } else {
-        analogWrite(LSSwitchPins[lsswitch], value); // Nastavit PWM
+        analogWrite(LSSwitchPins[lsswitch], value); 
     }
 }
 
@@ -2286,27 +2286,17 @@ void processCommands() {
         }
     }
    for (int i = 0; i < numOfHSSwitches; i++) {
-        int bitState = bitRead(Mb.MbData[hssLssByte], i);
         int pwmValue = Mb.MbData[hssPWM1Byte + i];
-        if (bitState == 1 && (pwmValue == 0 || pwmValue == 255)) {
-            Mb.MbData[hssPWM1Byte + i] = 255;
-        } else if (bitState == 0) {
-            Mb.MbData[hssPWM1Byte + i] = 0;
-        }
-        int value = (bitState == 1) ? Mb.MbData[hssPWM1Byte + i] : 0;
+        bitWrite(Mb.MbData[hssLssByte], i, (pwmValue > 0) ? 1 : 0); 
+        int value = pwmValue; 
         if (value >= 0 && value <= 255) {
             setHSSwitch(i, value);
         }
     }
     for (int i = 0; i < numOfLSSwitches; i++) {
-        int bitState = bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches);
         int pwmValue = Mb.MbData[lssPWM1Byte + i];
-        if (bitState == 1 && (pwmValue == 0 || pwmValue == 255)) {
-            Mb.MbData[lssPWM1Byte + i] = 255; 
-        } else if (bitState == 0) {
-            Mb.MbData[lssPWM1Byte + i] = 0;
-        }
-        int value = (bitState == 1) ? Mb.MbData[lssPWM1Byte + i] : 0;
+        bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (pwmValue > 0) ? 1 : 0); 
+        int value = pwmValue; 
         if (value >= 0 && value <= 255) {
             setLSSwitch(i, value);
         }
@@ -2319,7 +2309,7 @@ void processCommands() {
     }
 
     if (useUDPctrl) {
-        String cmd, originalCmd; // Dočasně zachováno, upravíme později
+        String cmd, originalCmd; 
         if (receivePacket(&cmd)) {
             originalCmd = cmd;
             dbg("Received packet: ");

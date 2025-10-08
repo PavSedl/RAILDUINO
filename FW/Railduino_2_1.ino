@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "07102025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "08102025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -137,9 +137,11 @@ EthernetClient testClient; // Client pro TCP test připojení
 #define EEPROM_INITFLAG 0
 #define EEPROM_SERIALLOCK 1
 #define EEPROM_DEBUGON 2
-#define EEPROM_PULSEON 3
-#define EEPROM_GATEWAYON 4
-#define EEPROM_UDPCONTROLON 5
+#define EEPROM_PULSEON_DI10 3
+#define EEPROM_PULSEON_DI11 4
+#define EEPROM_PULSEON_DI12 5
+#define EEPROM_GATEWAYON 6
+#define EEPROM_UDPCONTROLON 7
 #define EEPROM_1WIRECYCLE 10
 #define EEPROM_ANAINCYCLE 15
 #define EEPROM_PULSECYCLE 20
@@ -212,7 +214,9 @@ bool dipSwitchEthOn = false;
 bool dhcpSuccess = false; // Flag for successful DHCP IP acquisition
 bool serialLocked = false;
 bool debugEnabled = false;
-bool pulseOn = false;
+bool pulseOnDI10 = false;  // Pro pin 21 (di10)
+bool pulseOnDI11 = false;  // Pro pin 20 (di11)
+bool pulseOnDI12 = false;  // Pro pin 19 (di12)
 bool gatewayEnabled = false;
 bool useUDPctrl = true;
 int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19
@@ -495,7 +499,9 @@ void handleWebServer() {
                     client.print(F("\"oneWireCycle\":")); client.print(oneWireCycle); client.print(F(","));
                     client.print(F("\"anaInputCycle\":")); client.print(anaInputCycle); client.print(F(","));
                     client.print(F("\"useUDPctrl\":")); client.print(useUDPctrl ? 1 : 0); client.print(F(","));
-                    client.print(F("\"pulseOn\":")); client.print(pulseOn ? 1 : 0); client.print(F(","));
+                    client.print(F("\"pulseOnDI10\":")); client.print(pulseOnDI10 ? 1 : 0); client.print(F(","));
+                    client.print(F("\"pulseOnDI11\":")); client.print(pulseOnDI11 ? 1 : 0); client.print(F(","));
+                    client.print(F("\"pulseOnDI12\":")); client.print(pulseOnDI12 ? 1 : 0); client.print(F(","));
                     client.print(F("\"pulseSendCycle\":")); client.print(pulseSendCycle); client.print(F(","));
                     client.print(F("\"gatewayEnabled\":")); client.print(gatewayEnabled ? 1 : 0); client.print(F(","));
                     client.print(F("\"checkInterval\":")); client.print(checkInterval); client.print(F(","));
@@ -526,6 +532,7 @@ void handleWebServer() {
                         client.print(F("\"")); client.print(urlDecode(tempAlias)); client.print(F("\""));
                         client.print(i < numOfRelays - 1 ? F(",") : F("],"));
                     }
+
 
                     // Print high-side switch aliases
                     client.print(F("\"alias_hss\":[")); 
@@ -684,7 +691,7 @@ void handleWebServer() {
                             if (val >= 1000 && val <= 60000) {
                                 pulseSendCycle = val;
                                 EEPROM.put(EEPROM_PULSECYCLE, pulseSendCycle);
-                                if (pulseOn) pulseTimer.sleep(pulseSendCycle);
+                                if (pulseOnDI10 || pulseOnDI11 || pulseOnDI12) pulseTimer.sleep(pulseSendCycle);
                                 dbg(F("pulseSendCycle updated: ")); dbgln(String(val));
                             }
                         }
@@ -719,24 +726,51 @@ void handleWebServer() {
                     }
 
                     // Update pulse sensing state
-                    if (request.indexOf(F("pulseOn=")) != -1) {
-                        value = parseParam(request, F("pulseOn="), startIdx, endIdx);
+                    if (request.indexOf(F("pulseOnDI10=")) != -1) {
+                        value = parseParam(request, F("pulseOnDI10="), startIdx, endIdx);
                         if (startIdx != -1) {
                             bool val = value.toInt() == 1;
-                            if (val != pulseOn) {
-                                pulseOn = val;
-                                EEPROM.put(EEPROM_PULSEON, pulseOn);
-                                if (pulseOn) {
+                            if (val != pulseOnDI10) {
+                                pulseOnDI10 = val;
+                                EEPROM.put(EEPROM_PULSEON_DI10, pulseOnDI10);
+                                if (pulseOnDI10) {
                                     attachInterrupt(digitalPinToInterrupt(21), [](){pulse1++;}, FALLING);
-                                    attachInterrupt(digitalPinToInterrupt(20), [](){pulse2++;}, FALLING);
-                                    attachInterrupt(digitalPinToInterrupt(19), [](){pulse3++;}, FALLING);
-                                    pulseTimer.sleep(pulseSendCycle);
                                 } else {
                                     detachInterrupt(digitalPinToInterrupt(21));
+                                }
+                                dbg(F("pulseOnDI10 updated: ")); dbgln(String(pulseOnDI10));
+                            }
+                        }
+                    }
+                    if (request.indexOf(F("pulseOnDI11=")) != -1) {
+                        value = parseParam(request, F("pulseOnDI11="), startIdx, endIdx);
+                        if (startIdx != -1) {
+                            bool val = value.toInt() == 1;
+                            if (val != pulseOnDI11) {
+                                pulseOnDI11 = val;
+                                EEPROM.put(EEPROM_PULSEON_DI11, pulseOnDI11);
+                                if (pulseOnDI11) {
+                                    attachInterrupt(digitalPinToInterrupt(20), [](){pulse2++;}, FALLING);
+                                } else {
                                     detachInterrupt(digitalPinToInterrupt(20));
+                                }
+                                dbg(F("pulseOnDI11 updated: ")); dbgln(String(pulseOnDI11));
+                            }
+                        }
+                    }
+                    if (request.indexOf(F("pulseOnDI12=")) != -1) {
+                        value = parseParam(request, F("pulseOnDI12="), startIdx, endIdx);
+                        if (startIdx != -1) {
+                            bool val = value.toInt() == 1;
+                            if (val != pulseOnDI12) {
+                                pulseOnDI12 = val;
+                                EEPROM.put(EEPROM_PULSEON_DI12, pulseOnDI12);
+                                if (pulseOnDI12) {
+                                    attachInterrupt(digitalPinToInterrupt(19), [](){pulse3++;}, FALLING);
+                                } else {
                                     detachInterrupt(digitalPinToInterrupt(19));
                                 }
-                                dbg(F("pulseOn updated: ")); dbgln(String(pulseOn));
+                                dbg(F("pulseOnDI12 updated: ")); dbgln(String(pulseOnDI12));
                             }
                         }
                     }
@@ -1035,7 +1069,7 @@ void handleWebServer() {
                         client.println(F("for(let i=0;i<data.digInputs.length;i++){"
                                         "let statusElem=document.getElementById('di_status'+(i+1));"
                                         "if(statusElem){let statusText=data.digInputs[i];"
-                                        "if(data.pulseOn&&(i===9||i===10||i===11))statusText+=' (count: '+data.pulseCounts[i-9]+')';"
+                                        "if((i===9&&data.pulseOnDI10)||(i===10&&data.pulseOnDI11)||(i===11&&data.pulseOnDI12))statusText+=' (count: '+data.pulseCounts[i-9]+')';"
                                         "statusElem.textContent=statusText;}}"));
                         // Update analog inputs
                         client.println(F("for(let i=0;i<data.anaInputs.length;i++){"
@@ -1067,7 +1101,9 @@ void handleWebServer() {
                                         "let oneWireCycle=document.getElementById('oneWireCycle');if(oneWireCycle)oneWireCycle.value=data.oneWireCycle||30000;"
                                         "let anaInputCycle=document.getElementById('anaInputCycle');if(anaInputCycle)anaInputCycle.value=data.anaInputCycle||10000;"
                                         "let useUDPctrl=document.getElementById('useUDPctrl');if(useUDPctrl)useUDPctrl.value=data.useUDPctrl.toString();"
-                                        "let pulseOn=document.getElementById('pulseOn');if(pulseOn)pulseOn.value=data.pulseOn.toString();"
+                                        "let pulseOnDI10=document.getElementById('pulseOnDI10');if(pulseOnDI10)pulseOnDI10.value=data.pulseOnDI10.toString();"
+                                        "let pulseOnDI11=document.getElementById('pulseOnDI11');if(pulseOnDI11)pulseOnDI11.value=data.pulseOnDI11.toString();"
+                                        "let pulseOnDI12=document.getElementById('pulseOnDI12');if(pulseOnDI12)pulseOnDI12.value=data.pulseOnDI12.toString();"
                                         "let gatewayEnabled=document.getElementById('gatewayEnabled');if(gatewayEnabled)gatewayEnabled.value=data.gatewayEnabled.toString();"
                                         "let pulseSendCycle=document.getElementById('pulseSendCycle');if(pulseSendCycle)pulseSendCycle.value=data.pulseSendCycle||10000;"
                                         "let checkInterval=document.getElementById('checkInterval');if(checkInterval)checkInterval.value=data.checkInterval||10000;"
@@ -1148,12 +1184,26 @@ void handleWebServer() {
                         if (!useUDPctrl) client.print(F("selected"));
                         client.print(F(">Modbus TCP</option><option value='1' "));
                         if (useUDPctrl) client.print(F("selected"));
-                        client.print(F(">UDP</option></select></td></tr><tr><td>Pulses Sensing (DI 10,11,12)</td><td><select id='pulseOn' onchange='sendCommand(\"pulseOn\",this.value)'>"));
-                        client.print(F("<option value='0' "));
-                        if (!pulseOn) client.print(F("selected"));
-                        client.print(F(">Off</option><option value='1' "));
-                        if (pulseOn) client.print(F("selected"));
-                        client.print(F(">On</option></select></td></tr><tr><td>LAN-RS485 Gateway</td><td><select id='gatewayEnabled' onchange='sendCommand(\"gatewayEnabled\",this.value)'>"));
+                        client.print(F(">UDP</option></select></td></tr>"));
+                        client.println(F("<tr><td>Pulse Sensing</td><td>"));
+                        client.println(F("<div style='display: flex; gap: 10px;'>"));
+                        client.println(F("<div style='white-space: nowrap;'><select id='pulseOnDI10' onchange='sendCommand(\"pulseOnDI10\",this.value)'><option value='0' "));
+                        client.print(pulseOnDI10 ? F("") : F("selected"));
+                        client.println(F(">Off</option><option value='1' "));
+                        client.print(pulseOnDI10 ? F("selected") : F(""));
+                        client.println(F(">DI10</option></select></div>"));
+                        client.println(F("<div style='white-space: nowrap;'><select id='pulseOnDI11' onchange='sendCommand(\"pulseOnDI11\",this.value)'><option value='0' "));
+                        client.print(pulseOnDI11 ? F("") : F("selected"));
+                        client.println(F(">Off</option><option value='1' "));
+                        client.print(pulseOnDI11 ? F("selected") : F(""));
+                        client.println(F(">DI11</option></select></div>"));
+                        client.println(F("<div style='white-space: nowrap;'><select id='pulseOnDI12' onchange='sendCommand(\"pulseOnDI12\",this.value)'><option value='0' "));
+                        client.print(pulseOnDI12 ? F("") : F("selected"));
+                        client.println(F(">Off</option><option value='1' "));
+                        client.print(pulseOnDI12 ? F("selected") : F(""));
+                        client.println(F(">DI12</option></select></div>"));
+                        client.println(F("</div></td></tr>"));
+                        client.print(F("<tr><td>LAN-RS485 Gateway</td><td><select id='gatewayEnabled' onchange='sendCommand(\"gatewayEnabled\",this.value)'>"));
                         client.print(F("<option value='0' "));
                         if (!gatewayEnabled) client.print(F("selected"));
                         client.print(F(">Off</option><option value='1' "));
@@ -1607,7 +1657,9 @@ void setup() {
 
     initEEPROM(EEPROM_SERIALLOCK, serialLocked, false);
     initEEPROM(EEPROM_DEBUGON, debugEnabled, false);
-    initEEPROM(EEPROM_PULSEON, pulseOn, false);
+    initEEPROM(EEPROM_PULSEON_DI10, pulseOnDI10, false);
+    initEEPROM(EEPROM_PULSEON_DI11, pulseOnDI11, false);
+    initEEPROM(EEPROM_PULSEON_DI12, pulseOnDI12, false);
     initEEPROM(EEPROM_GATEWAYON, gatewayEnabled, false);
     initEEPROMUL(EEPROM_ANAINCYCLE, anaInputCycle, 10000UL);
     initEEPROMUL(EEPROM_LANCYCLE, checkInterval, 10000UL);
@@ -1657,7 +1709,6 @@ void setup() {
 
     EEPROM.get(EEPROM_SERIALLOCK, serialLocked);
     EEPROM.get(EEPROM_DEBUGON, debugEnabled);
-    EEPROM.get(EEPROM_PULSEON, pulseOn);
     EEPROM.get(EEPROM_GATEWAYON, gatewayEnabled);
     EEPROM.get(EEPROM_1WIRECYCLE, oneWireCycle);
     EEPROM.get(EEPROM_ANAINCYCLE, anaInputCycle);
@@ -1673,7 +1724,9 @@ void setup() {
         char emptyAlias[41] = "";
         EEPROM.put(EEPROM_SERIALLOCK, false);
         EEPROM.put(EEPROM_DEBUGON, false);
-        EEPROM.put(EEPROM_PULSEON, false);
+        EEPROM.put(EEPROM_PULSEON_DI10, false);
+        EEPROM.put(EEPROM_PULSEON_DI11, false);
+        EEPROM.put(EEPROM_PULSEON_DI12, false);
         EEPROM.put(EEPROM_GATEWAYON, false);
         for (int i = 0; i < numOfRelays; i++) EEPROM.put(EEPROM_ALIAS_RELAYS + i * 41, emptyAlias);
         for (int i = 0; i < numOfHSSwitches; i++) EEPROM.put(EEPROM_ALIAS_HSS + i * 41, emptyAlias);
@@ -1693,13 +1746,6 @@ void setup() {
         initFlag = 0xAA;
         EEPROM.put(EEPROM_INITFLAG, initFlag);
         dbg(F("EEPROM initialized with default values"));
-    }
-
-    // Attach interrupts for pulse counting
-    if (pulseOn) {
-        attachInterrupt(digitalPinToInterrupt(21), [](){pulse1++;}, FALLING);
-        attachInterrupt(digitalPinToInterrupt(20), [](){pulse2++;}, FALLING);
-        attachInterrupt(digitalPinToInterrupt(19), [](){pulse3++;}, FALLING);
     }
 
     Serial.begin(115200);
@@ -1799,10 +1845,10 @@ void loop() {
     // Update status LED
     statusLed();
 
-
-
     // Send pulse packet if pulse sensing is enabled
-    if (pulseOn) {sendPulsePacket();}
+    if (pulseOnDI10 || pulseOnDI11 || pulseOnDI12) {
+        sendPulsePacket();
+    }
 }
 
 bool isValidAlias(const char* alias) { 
@@ -1832,18 +1878,24 @@ void sendPulsePacket() {
         return;
     }
     pulseTimer.sleep(pulseSendCycle);
-    sentPulse1 = pulse1;
-    sentPulse2 = pulse2;
-    sentPulse3 = pulse3;
     char prefix[5];
     strncpy_P(prefix, digInputStr, sizeof(prefix));
     prefix[sizeof(prefix) - 1] = '\0';
-    sendMsg(String(prefix) + "10 " + String(sentPulse1));
-    sendMsg(String(prefix) + "11 " + String(sentPulse2));
-    sendMsg(String(prefix) + "12 " + String(sentPulse3));
-    pulse1 = 0;
-    pulse2 = 0;
-    pulse3 = 0;
+    if (pulseOnDI10) {
+        sentPulse1 = pulse1;
+        sendMsg(String(prefix) + "10 " + String(sentPulse1));
+        pulse1 = 0;
+    }
+    if (pulseOnDI11) {
+        sentPulse2 = pulse2;
+        sendMsg(String(prefix) + "11 " + String(sentPulse2));
+        pulse2 = 0;
+    }
+    if (pulseOnDI12) {
+        sentPulse3 = pulse3;
+        sendMsg(String(prefix) + "12 " + String(sentPulse3));
+        pulse3 = 0;
+    }
 }
 
 // Maintain Ethernet connection
@@ -2011,7 +2063,9 @@ void readDigInputs() {
         int oldValue = inputStatus[i];
         int newValue = inputStatusNew[i];
         int curValue = digitalRead(inputPins[i]);
-        if (pulseOn && (i == 9 || i == 10 || i == 11)) { curValue = 1; }
+        if ((i == 9 && pulseOnDI10) || (i == 10 && pulseOnDI11) || (i == 11 && pulseOnDI12)) {
+            curValue = 1;
+        }
         int byteNo = i/8;
         int bitPos = i - (byteNo*8);
         if (oldValue != newValue) {

@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "08102025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "13102025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -77,7 +77,7 @@ MODBUS Register Map
 register number (2 bytes)  description
 0 - bits 0-7               relay outputs 1-8
 1 - bits 16-19             relay outputs 9-12
-2 - bits 32-39             digital outputs HSS 1-4, LSS 1-4
+2 - bits 32-39             reserved
 3 - LSB byte               HSS PWM value 1 (0-255)
 4 - LSB byte               HSS PWM value 2 (0-255)
 5 - LSB byte               HSS PWM value 3 (0-255)
@@ -163,7 +163,6 @@ EthernetClient testClient; // Client pro TCP test připojení
 // MODBUS register definitions
 #define relOut1Byte 0   // Relay outputs 1-8
 #define relOut2Byte 1   // Relay outputs 9-12
-#define hssLssByte 2    // HSS and LSS outputs
 #define hssPWM1Byte 3   // PWM for HSS1
 #define hssPWM2Byte 4   // PWM for HSS2
 #define hssPWM3Byte 5   // PWM for HSS3
@@ -424,14 +423,14 @@ void handleWebServer() {
                     // Print high-side switch states
                     client.print(F("\"hss\":[")); 
                     for (int i = 0; i < numOfHSSwitches; i++) {
-                        client.print(bitRead(Mb.MbData[hssLssByte], i));
+                        client.print(Mb.MbData[hssPWM1Byte + i] > 0 ? 1 : 0);
                         client.print(i < numOfHSSwitches - 1 ? F(",") : F("],"));
                     }
 
                     // Print low-side switch states
                     client.print(F("\"lss\":[")); 
                     for (int i = 0; i < numOfLSSwitches; i++) {
-                        client.print(bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches));
+                        client.print(Mb.MbData[lssPWM1Byte + i] > 0 ? 1 : 0);
                         client.print(i < numOfLSSwitches - 1 ? F(",") : F("],"));
                     }
 
@@ -962,7 +961,6 @@ void handleWebServer() {
                                 int val = value.toInt();
                                 if (val >= 0 && val <= 255) {
                                     Mb.MbData[hssPWM1Byte + i] = val;
-                                    bitWrite(Mb.MbData[hssLssByte], i, (val > 0) ? 1 : 0);
                                     setHSSwitch(i, val);
                                     dbg(F("HSS ")); dbg(String(i + 1)); dbg(F(" updated: ")); dbgln(String(val));
                                 }
@@ -979,7 +977,6 @@ void handleWebServer() {
                                 int val = value.toInt();
                                 if (val >= 0 && val <= 255) {
                                     Mb.MbData[lssPWM1Byte + i] = val;
-                                    bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (val > 0) ? 1 : 0);
                                     setLSSwitch(i, val);
                                     dbg(F("LSS ")); dbg(String(i + 1)); dbg(F(" updated: ")); dbgln(String(val));
                                 }
@@ -1289,7 +1286,7 @@ void handleWebServer() {
                             client.print(F("' onchange='sendCommand(\"hss"));
                             client.print(i + 1);
                             client.print(F("\",this.checked?255:0)'"));
-                            if (bitRead(Mb.MbData[hssLssByte], i)) {
+                            if (Mb.MbData[hssPWM1Byte + i] > 0) {
                                 client.print(F(" checked class='status-on'"));
                             } else {
                                 client.print(F(" class='status-off'"));
@@ -1353,7 +1350,7 @@ void handleWebServer() {
                             client.print(F("' onchange='sendCommand(\"lss"));
                             client.print(i + 1);
                             client.print(F("\",this.checked?255:0)'"));
-                            if (bitRead(Mb.MbData[hssLssByte], i + numOfHSSwitches)) {
+                            if (Mb.MbData[lssPWM1Byte + i] > 0) {
                                 client.print(F(" checked class='status-on'"));
                             } else {
                                 client.print(F(" class='status-off'"));
@@ -2160,6 +2157,7 @@ void setHSSwitch(int hsswitch, int value) {
     if (hsswitch >= numOfHSSwitches) {
         return;
     }
+    value = constrain(value, 0, 255);
     analogWrite(HSSwitchPins[hsswitch], value); 
 }
 
@@ -2168,11 +2166,11 @@ void setLSSwitch(int lsswitch, int value) {
     if (lsswitch >= numOfLSSwitches) {
         return;
     }
+    value = constrain(value, 0, 255);
     if (lsswitch == 3) {
-        if (value > 0) { digitalWrite(LSSwitchPins[lsswitch], 1); 
-        } else { digitalWrite(LSSwitchPins[lsswitch], 0); }
+        digitalWrite(LSSwitchPins[lsswitch], value > 0 ? HIGH : LOW); // LSS4 pouze on/off
     } else {
-        analogWrite(LSSwitchPins[lsswitch], value); 
+        analogWrite(LSSwitchPins[lsswitch], value);
     }
 }
 
@@ -2219,14 +2217,13 @@ void processRS485ToLAN() {
 
                 if (isLocal) {
                     digitalWrite(ledPins[1], HIGH);  
-                    byte byteNo, bitPos;
                     char prefix[5];
                     strncpy_P(prefix, relayStr, sizeof(prefix));
                     prefix[sizeof(prefix) - 1] = '\0';
                     if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
                         for (int i = 0; i < numOfRelays; i++) {
-                            byteNo = (i < 8) ? relOut1Byte : relOut2Byte;
-                            bitPos = (i < 8) ? i : i-8;
+                            byte byteNo = (i < 8) ? relOut1Byte : relOut2Byte;
+                            byte bitPos = (i < 8) ? i : i-8;
                             sprintf(cmdBuffer, "ro%d on", i + 1);
                             if (cmd == cmdBuffer) {
                                 bitWrite(Mb.MbData[byteNo], bitPos, 1);
@@ -2244,13 +2241,11 @@ void processRS485ToLAN() {
                                 sprintf(cmdBuffer, "ho%d on", i + 1);
                                 if (cmd == cmdBuffer) {
                                     Mb.MbData[hssPWM1Byte + i] = 255;
-                                    bitWrite(Mb.MbData[hssLssByte], i, 1);
                                     setHSSwitch(i, 255);
                                 }
                                 sprintf(cmdBuffer, "ho%d off", i + 1);
                                 if (cmd == cmdBuffer) {
                                     Mb.MbData[hssPWM1Byte + i] = 0;
-                                    bitWrite(Mb.MbData[hssLssByte], i, 0);
                                     setHSSwitch(i, 0);
                                 }
                                 sprintf(cmdBuffer, "ho%d_pwm ", i + 1);
@@ -2259,7 +2254,6 @@ void processRS485ToLAN() {
                                     int value = pwmValue.toInt();
                                     if (value >= 0 && value <= 255) {
                                         Mb.MbData[hssPWM1Byte + i] = value;
-                                        bitWrite(Mb.MbData[hssLssByte], i, (value > 0) ? 1 : 0);
                                         setHSSwitch(i, value);
                                     }
                                 }
@@ -2272,22 +2266,19 @@ void processRS485ToLAN() {
                                     sprintf(cmdBuffer, "lo%d on", i + 1);
                                     if (cmd == cmdBuffer) {
                                         Mb.MbData[lssPWM1Byte + i] = 255;
-                                        bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 1);
                                         setLSSwitch(i, 255);
                                     }
                                     sprintf(cmdBuffer, "lo%d off", i + 1);
                                     if (cmd == cmdBuffer) {
                                         Mb.MbData[lssPWM1Byte + i] = 0;
-                                        bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 0);
                                         setLSSwitch(i, 0);
                                     }
                                     sprintf(cmdBuffer, "lo%d_pwm ", i + 1);
                                     if (cmd.startsWith(cmdBuffer)) {
                                         String pwmValue = cmd.substring(strlen(cmdBuffer));
                                         int value = pwmValue.toInt();
-                                        if (value >= 0 && value <= 255 && i != 3) {
+                                        if (value >= 0 && value <= 255) {
                                             Mb.MbData[lssPWM1Byte + i] = value;
-                                            bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (value > 0) ? 1 : 0);
                                             setLSSwitch(i, value);
                                         }
                                     }
@@ -2339,24 +2330,20 @@ void processCommands() {
             setRelay(i, bitRead(Mb.MbData[relOut2Byte], i-8));
         }
     }
-   for (int i = 0; i < numOfHSSwitches; i++) {
-        int pwmValue = Mb.MbData[hssPWM1Byte + i];
-        bitWrite(Mb.MbData[hssLssByte], i, (pwmValue > 0) ? 1 : 0); 
-        int value = pwmValue; 
+    for (int i = 0; i < numOfHSSwitches; i++) {
+        int value = Mb.MbData[hssPWM1Byte + i];
         if (value >= 0 && value <= 255) {
             setHSSwitch(i, value);
         }
     }
     for (int i = 0; i < numOfLSSwitches; i++) {
-        int pwmValue = Mb.MbData[lssPWM1Byte + i];
-        bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (pwmValue > 0) ? 1 : 0); 
-        int value = pwmValue; 
+        int value = Mb.MbData[lssPWM1Byte + i];
         if (value >= 0 && value <= 255) {
             setLSSwitch(i, value);
         }
     }
     for (int i = 0; i < numOfAnaOuts; i++) {
-        setAnaOut(i, Mb.MbData[anaOut1Byte+i]);
+        setAnaOut(i, Mb.MbData[anaOut1Byte + i]);
     }
     if (bitRead(Mb.MbData[resetByte], 0)) {
         resetFunc();
@@ -2394,13 +2381,11 @@ void processCommands() {
                         sprintf(cmdBuffer, "ho%d on", i + 1);
                         if (cmd == cmdBuffer) {
                             Mb.MbData[hssPWM1Byte + i] = 255;
-                            bitWrite(Mb.MbData[hssLssByte], i, 1);
                             setHSSwitch(i, 255);
                         }
                         sprintf(cmdBuffer, "ho%d off", i + 1);
                         if (cmd == cmdBuffer) {
                             Mb.MbData[hssPWM1Byte + i] = 0;
-                            bitWrite(Mb.MbData[hssLssByte], i, 0);
                             setHSSwitch(i, 0);
                         }
                         sprintf(cmdBuffer, "ho%d_pwm ", i + 1);
@@ -2409,7 +2394,6 @@ void processCommands() {
                             int value = pwmValue.toInt();
                             if (value >= 0 && value <= 255) {
                                 Mb.MbData[hssPWM1Byte + i] = value;
-                                bitWrite(Mb.MbData[hssLssByte], i, (value > 0) ? 1 : 0);
                                 setHSSwitch(i, value);
                             }
                         }
@@ -2422,13 +2406,11 @@ void processCommands() {
                             sprintf(cmdBuffer, "lo%d on", i + 1);
                             if (cmd == cmdBuffer) {
                                 Mb.MbData[lssPWM1Byte + i] = 255;
-                                bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 1);
                                 setLSSwitch(i, 255);
                             }
                             sprintf(cmdBuffer, "lo%d off", i + 1);
                             if (cmd == cmdBuffer) {
                                 Mb.MbData[lssPWM1Byte + i] = 0;
-                                bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, 0);
                                 setLSSwitch(i, 0);
                             }
                             sprintf(cmdBuffer, "lo%d_pwm ", i + 1);
@@ -2437,7 +2419,6 @@ void processCommands() {
                                 int value = pwmValue.toInt();
                                 if (value >= 0 && value <= 255) {
                                     Mb.MbData[lssPWM1Byte + i] = value;
-                                    bitWrite(Mb.MbData[hssLssByte], i + numOfHSSwitches, (value > 0) ? 1 : 0);
                                     setLSSwitch(i, value);
                                 }
                             }

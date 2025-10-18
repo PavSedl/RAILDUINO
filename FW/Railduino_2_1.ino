@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "13102025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "18102025"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -734,8 +734,12 @@ void handleWebServer() {
                                 EEPROM.put(EEPROM_PULSEON_DI10, pulseOnDI10);
                                 if (pulseOnDI10) {
                                     attachInterrupt(digitalPinToInterrupt(21), [](){pulse1++;}, FALLING);
+                                    inputStatus[9] = 1;
+                                    inputStatusNew[9] = 1;
                                 } else {
                                     detachInterrupt(digitalPinToInterrupt(21));
+                                    pulse1 = 0;
+                                    sentPulse1 = 0;
                                 }
                                 dbg(F("pulseOnDI10 updated: ")); dbgln(String(pulseOnDI10));
                             }
@@ -750,8 +754,12 @@ void handleWebServer() {
                                 EEPROM.put(EEPROM_PULSEON_DI11, pulseOnDI11);
                                 if (pulseOnDI11) {
                                     attachInterrupt(digitalPinToInterrupt(20), [](){pulse2++;}, FALLING);
+                                    inputStatus[10] = 1;
+                                    inputStatusNew[10] = 1;
                                 } else {
                                     detachInterrupt(digitalPinToInterrupt(20));
+                                    pulse2 = 0;
+                                    sentPulse2 = 0;
                                 }
                                 dbg(F("pulseOnDI11 updated: ")); dbgln(String(pulseOnDI11));
                             }
@@ -766,8 +774,12 @@ void handleWebServer() {
                                 EEPROM.put(EEPROM_PULSEON_DI12, pulseOnDI12);
                                 if (pulseOnDI12) {
                                     attachInterrupt(digitalPinToInterrupt(19), [](){pulse3++;}, FALLING);
+                                    inputStatus[11] = 1;
+                                    inputStatusNew[11] = 1;
                                 } else {
                                     detachInterrupt(digitalPinToInterrupt(19));
+                                    pulse3 = 0;
+                                    sentPulse3 = 0;
                                 }
                                 dbg(F("pulseOnDI12 updated: ")); dbgln(String(pulseOnDI12));
                             }
@@ -1260,9 +1272,7 @@ void handleWebServer() {
                         // Second row: HSS and LSS Status
                         client.println(F("<table class='inner'><tr><td><h3>High-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfHSSwitches; i++) {
-                            client.print(F("<tr><td title=\"Modbus Register 2 - Bit "));
-                            client.print(32 + i); // Bity 32-35 pro HSS 1-4 pro ON/OFF
-                            client.print(F(" (ON/OFF)\nModbus Register "));
+                            client.print(F("<tr><td title=\"Modbus Register "));
                             client.print(3 + i); // Bity 3-6 pro HSS PWM 1-4
                             client.print(F(" - PWM Value (0-255)\nUDP: rail"));
                             client.print(boardAddress);
@@ -1314,9 +1324,7 @@ void handleWebServer() {
                         }
                         client.println(F("</table></td></tr><tr><td><h3>Low-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfLSSwitches; i++) {
-                            client.print(F("<tr><td title=\"Modbus Register 2 - Bit "));
-                            client.print(36 + i); // Bity 36-39 pro LSS 1-4 pro ON/OFF
-                            client.print(F(" (ON/OFF)"));
+                            client.print(F("<tr><td title=\""));
                             if (i != 3) { // PWM není podporováno pro LSS4
                                 client.print(F("\nModbus Register "));
                                 client.print(7 + i); // Bity 7-9 pro LSS PWM 1-3
@@ -1716,7 +1724,11 @@ void setup() {
     EEPROM.get(EEPROM_SERIALNUMBER, serialNumber);
     EEPROM.get(EEPROM_INITFLAG, initFlag);
     EEPROM.get(EEPROM_UDPCONTROLON, useUDPctrl);
-
+    EEPROM.get(EEPROM_PULSEON_DI10, pulseOnDI10);
+    EEPROM.get(EEPROM_PULSEON_DI11, pulseOnDI11);
+    EEPROM.get(EEPROM_PULSEON_DI12, pulseOnDI12);
+    
+    
     if (initFlag != 0xAA) {
         char emptyAlias[41] = "";
         EEPROM.put(EEPROM_SERIALLOCK, false);
@@ -1743,6 +1755,30 @@ void setup() {
         initFlag = 0xAA;
         EEPROM.put(EEPROM_INITFLAG, initFlag);
         dbg(F("EEPROM initialized with default values"));
+    }
+
+    if (pulseOnDI10) {
+        attachInterrupt(digitalPinToInterrupt(21), [](){pulse1++;}, FALLING);
+        inputStatus[9] = 1;  // DI10 je index 9
+        inputStatusNew[9] = 1;
+        dbgln("Pulse counting enabled on DI10");
+    }
+
+    if (pulseOnDI11) {
+        attachInterrupt(digitalPinToInterrupt(20), [](){pulse2++;}, FALLING);
+        inputStatus[10] = 1;  // DI11 je index 10
+        inputStatusNew[10] = 1;
+        dbgln("Pulse counting enabled on DI11");
+    }
+    if (pulseOnDI12) {
+        attachInterrupt(digitalPinToInterrupt(19), [](){pulse3++;}, FALLING);
+        inputStatus[11] = 1;  // DI12 je index 11
+        inputStatusNew[11] = 1;
+        dbgln("Pulse counting enabled on DI12");
+    }
+    
+    if (pulseOnDI10 || pulseOnDI11 || pulseOnDI12) {
+        pulseTimer.sleep(pulseSendCycle);
     }
 
     Serial.begin(115200);
@@ -2057,14 +2093,18 @@ void processOnewire() {
 void readDigInputs() {
     int timestamp = millis();
     for (int i = 0; i < numOfDigInputs; i++) {      
+        // Skip inputs with pulse counting enabled
+        if ((i == 9 && pulseOnDI10) || (i == 10 && pulseOnDI11) || (i == 11 && pulseOnDI12)) {
+            continue;
+        }
+        
         int oldValue = inputStatus[i];
         int newValue = inputStatusNew[i];
         int curValue = digitalRead(inputPins[i]);
-        if ((i == 9 && pulseOnDI10) || (i == 10 && pulseOnDI11) || (i == 11 && pulseOnDI12)) {
-            curValue = 1;
-        }
+        
         int byteNo = i/8;
         int bitPos = i - (byteNo*8);
+        
         if (oldValue != newValue) {
             if (newValue != curValue) {
                 inputStatusNew[i] = curValue;

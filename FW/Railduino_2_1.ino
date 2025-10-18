@@ -1273,8 +1273,9 @@ void handleWebServer() {
                         client.println(F("<table class='inner'><tr><td><h3>High-Side Switches Status (0-255 = 0-V+)</h3><table class='inner'>"));
                         for (int i = 0; i < numOfHSSwitches; i++) {
                             client.print(F("<tr><td title=\"Modbus Register "));
-                            client.print(3 + i); // Bity 3-6 pro HSS PWM 1-4
-                            client.print(F(" - PWM Value (0-255)\nUDP: rail"));
+                            client.print(3 + i); // Registry 3-6 pro HSS PWM 1-4
+                            client.print(F(" - PWM Value (0-255)\n 0 = OFF, 1 = ON (auto-converts to 255)\n 2-255 = PWM control\n"));
+                            client.print(F("UDP: rail"));
                             client.print(boardAddress);
                             client.print(F(" ho"));
                             client.print(i + 1);
@@ -1326,13 +1327,13 @@ void handleWebServer() {
                         for (int i = 0; i < numOfLSSwitches; i++) {
                             client.print(F("<tr><td title=\""));
                             if (i != 3) { // PWM není podporováno pro LSS4
-                                client.print(F("\nModbus Register "));
-                                client.print(7 + i); // Bity 7-9 pro LSS PWM 1-3
-                                client.print(F(" - PWM Value (0-255)"));
+                                client.print(F("Modbus Register "));
+                                client.print(7 + i); // Registry 7-9 pro LSS PWM 1-3
+                                client.print(F(" - PWM Value (0-255)\n 0 = OFF, 1 = ON (auto-converts to 255)\n 2-255 = PWM control\n"));
                             } else {
-                                client.print(F("\nModbus Register 10 - Value (0 or 255)")); // LSS4 bez PWM
+                                client.print(F("Modbus Register 10 - 0 or 255\n 0 = OFF, 1 = ON (auto-converts to 255)\n")); // LSS4 bez PWM
                             }
-                            client.print(F("\nUDP: rail"));
+                            client.print(F("UDP: rail"));
                             client.print(boardAddress);
                             client.print(F(" lo"));
                             client.print(i + 1);
@@ -2363,6 +2364,8 @@ void processRS485ToLAN() {
 // Process incoming commands
 void processCommands() {
     byte byteNo, bitPos;
+    
+    // Process relay outputs
     for (int i = 0; i < numOfRelays; i++) {
         if (i < 8) {
             setRelay(i, bitRead(Mb.MbData[relOut1Byte], i));
@@ -2370,25 +2373,52 @@ void processCommands() {
             setRelay(i, bitRead(Mb.MbData[relOut2Byte], i-8));
         }
     }
+    
+    // Process HSS outputs with 0/1 to 0/255 conversion
     for (int i = 0; i < numOfHSSwitches; i++) {
         int value = Mb.MbData[hssPWM1Byte + i];
+        // Convert digital values 0 or 1 to PWM values 0 or 255
+        if (value == 1) {
+            value = 255;
+            Mb.MbData[hssPWM1Byte + i] = 255; // Update the register to reflect actual PWM value
+        } else if (value == 0) {
+            value = 0;
+            Mb.MbData[hssPWM1Byte + i] = 0;
+        }
+        // Value is already in PWM range (2-255), use as is
         if (value >= 0 && value <= 255) {
             setHSSwitch(i, value);
         }
     }
+    
+    // Process LSS outputs with 0/1 to 0/255 conversion
     for (int i = 0; i < numOfLSSwitches; i++) {
         int value = Mb.MbData[lssPWM1Byte + i];
+        // Convert digital values 0 or 1 to PWM values 0 or 255
+        if (value == 1) {
+            value = 255;
+            Mb.MbData[lssPWM1Byte + i] = 255; // Update the register to reflect actual PWM value
+        } else if (value == 0) {
+            value = 0;
+            Mb.MbData[lssPWM1Byte + i] = 0;
+        }
+        // Value is already in PWM range (2-255), use as is
         if (value >= 0 && value <= 255) {
             setLSSwitch(i, value);
         }
     }
+    
+    // Process analog outputs
     for (int i = 0; i < numOfAnaOuts; i++) {
         setAnaOut(i, Mb.MbData[anaOut1Byte + i]);
     }
+    
+    // Process reset command
     if (bitRead(Mb.MbData[resetByte], 0)) {
         resetFunc();
     }
 
+    // Process UDP commands
     if (useUDPctrl) {
         String cmd, originalCmd; 
         if (receivePacket(&cmd)) {

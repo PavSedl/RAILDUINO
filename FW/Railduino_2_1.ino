@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "18102025"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "25032026"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -350,7 +350,7 @@ void resetEthernetModule() {
 void checkEthernet() {
     udpRecv.stop();
     udpSend.stop();
-    bool connected = testClient.connected() || testClient.connect(dhcpServer, 53);
+    bool connected = testClient.connected() || testClient.connect(dhcpServer, 80);
     if (!connected) {
         dbgln(F("Ethernet connection failed, resetting."));
         dhcpSuccess = false;
@@ -701,7 +701,7 @@ void handleWebServer() {
                         value = parseParam(request, F("checkInterval="), startIdx, endIdx);
                         if (startIdx != -1) {
                             unsigned long val = value.toInt();
-                            if (val >= 1000 && val <= 60000) {
+                            if (val >= 1000 && val <= 3600000) {
                                 checkInterval = val;
                                 checkEthernetTimer.sleep(checkInterval);
                                 EEPROM.put(EEPROM_LANCYCLE, checkInterval);

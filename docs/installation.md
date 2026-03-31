@@ -22,7 +22,8 @@ Mounting onto DIN rail -- click the Railduino Module onto the DIN rail (TS 35) a
 
 !!! info "Pins 5-8 - Other functions"
 	- pins 5-7 are disabled as default  
-    - enable power supply (pin 8) is enabled as default - it means the module hw remote switch off is disabled - power supply is allways on. 
+    - enable power supply (pin 8) is enabled as default - it means the module hw remote switch off is disabled - power supply is allways on.
+    - pin 5 also switches RS485 (pin 5 ON) / Modbus RTU protocol (pin 5 OFF)
 	<table>
 	  <th>Pin</th><th>Function</th><th>ON</th><th>OFF</th>
 	  <tr><td>5</td><td>Gateway RS485-LAN</td><td>Enabled</td><td>Disabled</td></tr>

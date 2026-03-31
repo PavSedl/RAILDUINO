@@ -212,7 +212,7 @@ bool ethernetOK = false;
 bool dipSwitchEthOn = false;
 bool dhcpSuccess = false; // Flag for successful DHCP IP acquisition
 bool serialLocked = false;
-bool debugEnabled = false;
+bool debugEnabled = true;
 bool pulseOnDI10 = false;  // Pro pin 21 (di10)
 bool pulseOnDI11 = false;  // Pro pin 20 (di11)
 bool pulseOnDI12 = false;  // Pro pin 19 (di12)
@@ -1800,6 +1800,18 @@ void setup() {
     strcpy_P(boardAddressRailStr, railStr); // Načte "rail" z PROGMEM
     strcat(boardAddressRailStr, boardAddressStr.c_str()); // Přidá číslo adresy
 
+    pinMode(dipSwitchPins[4], INPUT);           // DIP 5
+    if (digitalRead(dipSwitchPins[4]) == LOW) {        // DIP 5 = ON
+        gatewayEnabled = true;
+        useUDPctrl = false;                            // pro jistotu
+        EEPROM.put(EEPROM_GATEWAYON, true);            // uložit do EEPROM
+        dbgln(F("DIP 5 = ON  -> Gateway enabled (Text UDP protocol over RS485)"));
+    } else {
+        gatewayEnabled = false;
+        EEPROM.put(EEPROM_GATEWAYON, false);
+        dbgln(F("DIP 5 = OFF -> Modbus RTU mode"));
+    }
+
     // Initialize Ethernet
     ethernetOK = ethShieldDetected();
     dbgln(ethernetOK ? "Ethernet shield detected" : "Ethernet shield NOT detected");
@@ -2172,17 +2184,25 @@ void sendMsg(String message) {
     char railPrefix[5];
     strncpy_P(railPrefix, railStr, sizeof(railPrefix));
     railPrefix[sizeof(railPrefix) - 1] = '\0';
-    message = String(railPrefix) + boardAddressStr + " " + message;
-    message.toCharArray(outputPacketBuffer, outputPacketBufferSize);
-    digitalWrite(ledPins[1], HIGH);
-    if (ethernetOK) {
-        udpSend.beginPacket(sendIpAddress, remPort);
-        udpSend.write(outputPacketBuffer, message.length());
-        udpSend.endPacket();
+    
+    String fullMessage = String(railPrefix) + boardAddressStr + " " + message;
+    
+    if (gatewayEnabled) {
+        digitalWrite(serial3TxControl, HIGH);
+        Serial3.print(fullMessage);
+        Serial3.println();
+        delay(serial3TxDelay); 
+        digitalWrite(serial3TxControl, LOW);
+        dbgln("Sent via RS485: " + fullMessage);
     }
-    digitalWrite(ledPins[1], LOW);
-    dbg("Sending packet: ");
-    dbgln(message);
+
+    if (ethernetOK) {
+        fullMessage.toCharArray(outputPacketBuffer, outputPacketBufferSize);
+        udpSend.beginPacket(sendIpAddress, remPort);
+        udpSend.write(outputPacketBuffer, fullMessage.length() + 1);
+        udpSend.endPacket();
+        dbgln("Sent via LAN: " + fullMessage);
+    }
 }
 
 // Set relay state
@@ -2243,120 +2263,148 @@ boolean receivePacket(String *cmd) {
 
 void processRS485ToLAN() {
     static String rs485Buffer = "";
-    while (Serial3.available()) {
+    static unsigned long lastCharTime = 0;
+
+    while (Serial3.available() > 0) {
         char c = Serial3.read();
         rs485Buffer += c;
-        if (c == '\n') {
-            rs485Buffer.trim();
-            if (rs485Buffer.length() > 0) {
-                dbg("Received from RS485: ");
-                dbgln(rs485Buffer);
-                bool isLocal = strncmp(rs485Buffer.c_str(), boardAddressRailStr, strlen(boardAddressRailStr)) == 0;
-                String cmd = isLocal ? rs485Buffer.substring(strlen(boardAddressRailStr)) : rs485Buffer;
-                cmd.trim();
-                dbgln("Processed RS485 command: " + cmd);
+        lastCharTime = millis();
+    }
 
-                if (isLocal) {
-                    digitalWrite(ledPins[1], HIGH);  
-                    char prefix[5];
-                    strncpy_P(prefix, relayStr, sizeof(prefix));
-                    prefix[sizeof(prefix) - 1] = '\0';
-                    if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                        for (int i = 0; i < numOfRelays; i++) {
-                            byte byteNo = (i < 8) ? relOut1Byte : relOut2Byte;
-                            byte bitPos = (i < 8) ? i : i-8;
-                            sprintf(cmdBuffer, "ro%d on", i + 1);
-                            if (cmd == cmdBuffer) {
-                                bitWrite(Mb.MbData[byteNo], bitPos, 1);
-                            }
-                            sprintf(cmdBuffer, "ro%d off", i + 1);
-                            if (cmd == cmdBuffer) {
-                                bitWrite(Mb.MbData[byteNo], bitPos, 0);
-                            }
+    if (rs485Buffer.length() > 0 && 
+        (rs485Buffer.indexOf('\n') >= 0 || 
+         rs485Buffer.indexOf('\r') >= 0 || 
+         (millis() - lastCharTime > 25))) {
+
+        rs485Buffer.trim();
+
+        if (rs485Buffer.length() > 0) {
+            dbgln("RS485: [" + rs485Buffer + "]");
+
+            bool isLocal = strncmp(rs485Buffer.c_str(), boardAddressRailStr, strlen(boardAddressRailStr)) == 0;
+            String cmd = isLocal ? rs485Buffer.substring(strlen(boardAddressRailStr)) : rs485Buffer;
+            cmd.trim();
+
+            cmd.replace("\n", "");
+            cmd.replace("\r", "");
+            cmd.trim();
+
+            dbgln("Processed RS485 command: [" + cmd + "]");
+
+            if (cmd.length() > 0) {
+                digitalWrite(ledPins[1], HIGH);
+
+                char prefix[5];
+
+                strncpy_P(prefix, relayStr, sizeof(prefix));
+                prefix[sizeof(prefix) - 1] = '\0';
+                if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
+                    for (int i = 0; i < numOfRelays; i++) {
+                        byte byteNo = (i < 8) ? relOut1Byte : relOut2Byte;
+                        byte bitPos = (i < 8) ? i : i - 8;
+
+                        sprintf(cmdBuffer, "ro%d on", i + 1);
+                        if (cmd == cmdBuffer || cmd.startsWith(cmdBuffer)) {
+                            bitWrite(Mb.MbData[byteNo], bitPos, 1);
+                            setRelay(i, 1);
+                            dbgln("Relay " + String(i + 1) + " → ON");
                         }
-                    } else {
-                        strncpy_P(prefix, HSSwitchStr, sizeof(prefix));
-                        prefix[sizeof(prefix) - 1] = '\0';
-                        if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                            for (int i = 0; i < numOfHSSwitches; i++) {
-                                sprintf(cmdBuffer, "ho%d on", i + 1);
-                                if (cmd == cmdBuffer) {
-                                    Mb.MbData[hssPWM1Byte + i] = 255;
-                                    setHSSwitch(i, 255);
-                                }
-                                sprintf(cmdBuffer, "ho%d off", i + 1);
-                                if (cmd == cmdBuffer) {
-                                    Mb.MbData[hssPWM1Byte + i] = 0;
-                                    setHSSwitch(i, 0);
-                                }
-                                sprintf(cmdBuffer, "ho%d_pwm ", i + 1);
-                                if (cmd.startsWith(cmdBuffer)) {
-                                    String pwmValue = cmd.substring(strlen(cmdBuffer));
-                                    int value = pwmValue.toInt();
-                                    if (value >= 0 && value <= 255) {
-                                        Mb.MbData[hssPWM1Byte + i] = value;
-                                        setHSSwitch(i, value);
-                                    }
-                                }
-                            }
-                        } else {
-                            strncpy_P(prefix, LSSwitchStr, sizeof(prefix));
-                            prefix[sizeof(prefix) - 1] = '\0';
-                            if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                                for (int i = 0; i < numOfLSSwitches; i++) {
-                                    sprintf(cmdBuffer, "lo%d on", i + 1);
-                                    if (cmd == cmdBuffer) {
-                                        Mb.MbData[lssPWM1Byte + i] = 255;
-                                        setLSSwitch(i, 255);
-                                    }
-                                    sprintf(cmdBuffer, "lo%d off", i + 1);
-                                    if (cmd == cmdBuffer) {
-                                        Mb.MbData[lssPWM1Byte + i] = 0;
-                                        setLSSwitch(i, 0);
-                                    }
-                                    sprintf(cmdBuffer, "lo%d_pwm ", i + 1);
-                                    if (cmd.startsWith(cmdBuffer)) {
-                                        String pwmValue = cmd.substring(strlen(cmdBuffer));
-                                        int value = pwmValue.toInt();
-                                        if (value >= 0 && value <= 255) {
-                                            Mb.MbData[lssPWM1Byte + i] = value;
-                                            setLSSwitch(i, value);
-                                        }
-                                    }
-                                }
-                            } else {
-                                strncpy_P(prefix, anaOutStr, sizeof(prefix));
-                                prefix[sizeof(prefix) - 1] = '\0';
-                                if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
-                                    for (int i = 0; i < numOfAnaOuts; i++) {
-                                        sprintf(cmdBuffer, "ao%d ", i + 1);
-                                        if (cmd.substring(0, strlen(cmdBuffer)) == cmdBuffer) {
-                                            String anaOutValue = cmd.substring(strlen(cmdBuffer));
-                                            Mb.MbData[anaOut1Byte + i] = anaOutValue.toInt();
-                                        }
-                                    }
-                                } else {
-                                    strncpy_P(prefix, rstStr, sizeof(prefix));
-                                    prefix[sizeof(prefix) - 1] = '\0';
-                                    if (cmd == prefix) {
-                                        bitWrite(Mb.MbData[resetByte], 0, 1);
-                                    }
-                                }
+
+                        sprintf(cmdBuffer, "ro%d off", i + 1);
+                        if (cmd == cmdBuffer || cmd.startsWith(cmdBuffer)) {
+                            bitWrite(Mb.MbData[byteNo], bitPos, 0);
+                            setRelay(i, 0);
+                            dbgln("Relay " + String(i + 1) + " → OFF");
+                        }
+                    }
+                }
+
+                strncpy_P(prefix, HSSwitchStr, sizeof(prefix));
+                prefix[sizeof(prefix) - 1] = '\0';
+                if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
+                    for (int i = 0; i < numOfHSSwitches; i++) {
+                        sprintf(cmdBuffer, "ho%d on", i + 1);
+                        if (cmd == cmdBuffer || cmd.startsWith(cmdBuffer)) {
+                            Mb.MbData[hssPWM1Byte + i] = 255;
+                            setHSSwitch(i, 255);
+                            dbgln("HSS " + String(i + 1) + " → ON");
+                        }
+                        sprintf(cmdBuffer, "ho%d off", i + 1);
+                        if (cmd == cmdBuffer || cmd.startsWith(cmdBuffer)) {
+                            Mb.MbData[hssPWM1Byte + i] = 0;
+                            setHSSwitch(i, 0);
+                            dbgln("HSS " + String(i + 1) + " → OFF");
+                        }
+                        sprintf(cmdBuffer, "ho%d_pwm ", i + 1);
+                        if (cmd.startsWith(cmdBuffer)) {
+                            String valStr = cmd.substring(strlen(cmdBuffer));
+                            int value = valStr.toInt();
+                            if (value >= 0 && value <= 255) {
+                                Mb.MbData[hssPWM1Byte + i] = value;
+                                setHSSwitch(i, value);
+                                dbgln("HSS " + String(i + 1) + " PWM = " + String(value));
                             }
                         }
                     }
                 }
 
-                if (ethernetOK) {
-                    udpSend.beginPacket(sendIpAddress, remPort);
-                    udpSend.print(rs485Buffer);
-                    udpSend.endPacket();
-                    dbg("Forwarded to LAN: ");
-                    dbgln(rs485Buffer);
+                strncpy_P(prefix, LSSwitchStr, sizeof(prefix));
+                prefix[sizeof(prefix) - 1] = '\0';
+                if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
+                    for (int i = 0; i < numOfLSSwitches; i++) {
+                        sprintf(cmdBuffer, "lo%d on", i + 1);
+                        if (cmd == cmdBuffer || cmd.startsWith(cmdBuffer)) {
+                            Mb.MbData[lssPWM1Byte + i] = 255;
+                            setLSSwitch(i, 255);
+                            dbgln("LSS " + String(i + 1) + " → ON");
+                        }
+                        sprintf(cmdBuffer, "lo%d off", i + 1);
+                        if (cmd == cmdBuffer || cmd.startsWith(cmdBuffer)) {
+                            Mb.MbData[lssPWM1Byte + i] = 0;
+                            setLSSwitch(i, 0);
+                            dbgln("LSS " + String(i + 1) + " → OFF");
+                        }
+                        sprintf(cmdBuffer, "lo%d_pwm ", i + 1);
+                        if (cmd.startsWith(cmdBuffer)) {
+                            String valStr = cmd.substring(strlen(cmdBuffer));
+                            int value = valStr.toInt();
+                            if (value >= 0 && value <= 255) {
+                                Mb.MbData[lssPWM1Byte + i] = value;
+                                setLSSwitch(i, value);
+                                dbgln("LSS " + String(i + 1) + " PWM = " + String(value));
+                            }
+                        }
+                    }
                 }
+
+                strncpy_P(prefix, anaOutStr, sizeof(prefix));
+                prefix[sizeof(prefix) - 1] = '\0';
+                if (strncmp(cmd.c_str(), prefix, strlen(prefix)) == 0) {
+                    for (int i = 0; i < numOfAnaOuts; i++) {
+                        sprintf(cmdBuffer, "ao%d ", i + 1);
+                        if (cmd.startsWith(cmdBuffer)) {
+                            String valStr = cmd.substring(strlen(cmdBuffer));
+                            int value = valStr.toInt();
+                            if (value >= 0 && value <= 255) {
+                                Mb.MbData[anaOut1Byte + i] = value;
+                                setAnaOut(i, value);
+                                dbgln("Analog Output " + String(i + 1) + " = " + String(value));
+                            }
+                        }
+                    }
+                }
+
+                strncpy_P(prefix, rstStr, sizeof(prefix));
+                prefix[sizeof(prefix) - 1] = '\0';
+                if (cmd == prefix) {
+                    bitWrite(Mb.MbData[resetByte], 0, 1);
+                    dbgln("Reset command received");
+                }
+
                 digitalWrite(ledPins[1], LOW);
-                rs485Buffer = "";
             }
+
+            rs485Buffer = "";
         }
     }
 }

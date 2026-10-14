@@ -365,21 +365,38 @@ void w5xBufferCopy(uint8_t s, uint16_t ptr, uint8_t *buf, uint16_t len, bool tx)
     }
 }
 
-// Send ICMP echo request (ping) to the gateway via raw socket, returns true if echo reply arrives in time
-bool pingGateway() {
-    static uint16_t pingSeq = 0;
+// Find a free (closed) socket of W5x00 chip, returns MAX_SOCK_NUM if all are in use
+uint8_t findFreeSocket() {
     uint8_t maxSock = (W5100.getChip() == 51) ? 4 : MAX_SOCK_NUM;
     uint8_t s;
-    bool replied = false;
-
     SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
     for (s = 0; s < maxSock; s++) {
         if (W5100.readSnSR(s) == SnSR::CLOSED) break;
     }
-    if (s == maxSock) { // no free socket - skip this check
-        SPI.endTransaction();
+    SPI.endTransaction();
+    return s < maxSock ? s : MAX_SOCK_NUM;
+}
+
+// Send ICMP echo request (ping) to the gateway via raw socket, returns true if echo reply arrives in time
+bool pingGateway() {
+    static uint16_t pingSeq = 0;
+    bool replied = false;
+
+    // W5100 has only 4 sockets - if all are in use, close UDP receiver for the time of the ping
+    bool udpRecvClosed = false;
+    uint8_t s = findFreeSocket();
+    if (s == MAX_SOCK_NUM) {
+        udpRecv.stop();
+        udpRecvClosed = true;
+        s = findFreeSocket();
+    }
+    if (s == MAX_SOCK_NUM) { // still no free socket - skip this check
+        dbgln(F("Gateway ping skipped - no free socket"));
+        if (udpRecvClosed && (useUDPctrl || gatewayEnabled)) udpRecv.begin(listenPort);
         return true;
     }
+
+    SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
     W5100.writeSnMR(s, SnMR::IPRAW);
     W5100.writeSnPROTO(s, IPPROTO::ICMP);
     W5100.writeSnIR(s, 0xFF);
@@ -418,6 +435,7 @@ bool pingGateway() {
     W5100.execCmdSn(s, Sock_CLOSE);
     W5100.writeSnIR(s, 0xFF);
     SPI.endTransaction();
+    if (udpRecvClosed && (useUDPctrl || gatewayEnabled)) udpRecv.begin(listenPort);
     return replied;
 }
 

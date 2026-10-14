@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "25032026"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "14102026"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -119,6 +119,7 @@ Using RS485 the UDP syntax must have \n symbol at the end of the command line
 #include <DS2438.h>
 #include <Ethernet.h>
 #include <EthernetUdp.h>
+#include <utility/w5100.h>
 #include <SPI.h>
 #include <MgsModbus.h>
 #include <avr/wdt.h>
@@ -132,7 +133,13 @@ unsigned int remPort = 55555;    // Remote port for sending messages
 unsigned int httpPort = 80;      // Port for HTTP webserver
 IPAddress dhcpServer; // DHCP server IP address (gateway)
 IPAddress sendIpAddress(255, 255, 255, 255); // Broadcast IP address for sending
-EthernetClient testClient; // Client pro TCP test připojení
+IPAddress ethIP, ethSubnet; // Last known IP configuration (restored after Ethernet module reset)
+
+#define dhcpTimeout 3000         // DHCP request timeout (ms) - must stay well below watchdog time (8 s)
+#define dhcpResponseTimeout 1500 // DHCP response timeout (ms)
+#define dhcpRetryDelay 60000     // Delay between DHCP retries after failure (ms)
+#define pingTimeout 1000         // Gateway ping reply timeout (ms)
+#define pingFailLimit 3          // Failed gateway pings in a row before Ethernet module reset
 
 #define EEPROM_INITFLAG 0
 #define EEPROM_SERIALLOCK 1
@@ -204,12 +211,10 @@ unsigned long pulseSendCycle = 10000; // Cycle for sending pulse counts (ms)
 unsigned long baudRate = 115200; // RS485 communication baud rate
 
 int boardAddress = 0; // Board address (from DIP switches)
-int serial3TxDelay = 10; // Delay for RS485 transmission
 int serial3TimeOut = 20; // Timeout for serial communication
 int resetPin = 4; // Pin for Ethernet module reset
 
 bool ethernetOK = false;
-bool dipSwitchEthOn = false;
 bool dhcpSuccess = false; // Flag for successful DHCP IP acquisition
 bool serialLocked = false;
 bool debugEnabled = true;
@@ -218,7 +223,7 @@ bool pulseOnDI11 = false;  // Pro pin 20 (di11)
 bool pulseOnDI12 = false;  // Pro pin 19 (di12)
 bool gatewayEnabled = false;
 bool useUDPctrl = true;
-int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19
+volatile int pulse1 = 0, pulse2 = 0, pulse3 = 0; // Pulse counters for pins 21, 20, 19 (changed in interrupts)
 int sentPulse1 = 0, sentPulse2 = 0, sentPulse3 = 0;
 
 #define statusLedTimeOn 50   // Status LED on time in milliseconds
@@ -227,6 +232,7 @@ int sentPulse1 = 0, sentPulse2 = 0, sentPulse3 = 0;
 #define commLedTimeOff 50    // Communication LED off time in milliseconds
 #define debouncingTime 5     // Debouncing time for inputs in milliseconds
 #define serial3TxControl 16  // Pin for RS485 transmission control
+#define rs485MaxMsgLen 64    // Max. length of text message received from RS485
 #define numOfDipSwitchPins 6 // Number of DIP switch pins
 #define numOfLedPins 2       // Number of LED pins
 #define numOfDigInputs 24    // Number of digital inputs
@@ -323,46 +329,120 @@ bool ethShieldDetected() {
     return (version == 0x02 || version == 0x03); 
 }
 
-// Resets Ethernet module, attempts DHCP, triggers watchdog if failed
-void resetEthernetModule() { 
-    pinMode(resetPin, OUTPUT); 
-    digitalWrite(resetPin, LOW); 
-    delay(50); 
-    digitalWrite(resetPin, HIGH); 
-    delay(200); 
-    unsigned long startTime = millis(); 
-    bool dhcpAttempt = false; 
-    while (millis() - startTime < 5000) { 
-        if (Ethernet.begin(mac) != 0 && Ethernet.localIP()[0] != 0) { 
-            dhcpAttempt = true; 
-            break; 
-        } 
-        delay(100); 
-    } 
-    dhcpSuccess = dhcpAttempt ? true : false; 
-    if (!dhcpAttempt) { 
-        dbgln("Ethernet reset failed. Triggering watchdog reset..."); 
-        while (true) {} 
-    } 
+// Store current IP configuration for restoring after Ethernet module reset
+void saveEthConfig() {
+    ethIP = Ethernet.localIP();
+    ethSubnet = Ethernet.subnetMask();
+    dhcpServer = Ethernet.gatewayIP();
 }
 
-// Check the Ethernet module
-void checkEthernet() {
+// Resets Ethernet module and restores last known IP configuration without blocking (DHCP lease is kept by IPrenew)
+void resetEthernetModule() {
     udpRecv.stop();
     udpSend.stop();
-    bool connected = testClient.connected() || testClient.connect(dhcpServer, 80);
-    if (!connected) {
-        dbgln(F("Ethernet connection failed, resetting."));
-        dhcpSuccess = false;
-        testClient.stop();
-        resetEthernetModule();
-        return;
-    } 
-    testClient.stop();
-    if (useUDPctrl) {
+    pinMode(resetPin, OUTPUT);
+    digitalWrite(resetPin, LOW);
+    delay(50);
+    digitalWrite(resetPin, HIGH);
+    delay(200);
+    Ethernet.begin(mac, ethIP, Ethernet.dnsServerIP(), dhcpServer, ethSubnet);
+    if (useUDPctrl || gatewayEnabled) {
         udpRecv.begin(listenPort);
     }
     udpSend.begin(sendPort);
+    server.begin();
+    dbgln("Ethernet module reset, IP restored: " + ipToString(Ethernet.localIP()));
+}
+
+// Copy data to (tx) or from (rx) socket buffer of W5x00 chip, handles circular buffer wrap
+void w5xBufferCopy(uint8_t s, uint16_t ptr, uint8_t *buf, uint16_t len, bool tx) {
+    uint16_t offset = ptr & W5100.SMASK;
+    uint16_t base = tx ? W5100.SBASE(s) : W5100.RBASE(s);
+    uint16_t first = (W5100.hasOffsetAddressMapping() || offset + len <= W5100.SSIZE) ? len : W5100.SSIZE - offset;
+    if (tx) W5100.write(base + offset, buf, first); else W5100.read(base + offset, buf, first);
+    if (first < len) {
+        if (tx) W5100.write(base, buf + first, len - first); else W5100.read(base, buf + first, len - first);
+    }
+}
+
+// Send ICMP echo request (ping) to the gateway via raw socket, returns true if echo reply arrives in time
+bool pingGateway() {
+    static uint16_t pingSeq = 0;
+    uint8_t maxSock = (W5100.getChip() == 51) ? 4 : MAX_SOCK_NUM;
+    uint8_t s;
+    bool replied = false;
+
+    SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
+    for (s = 0; s < maxSock; s++) {
+        if (W5100.readSnSR(s) == SnSR::CLOSED) break;
+    }
+    if (s == maxSock) { // no free socket - skip this check
+        SPI.endTransaction();
+        return true;
+    }
+    W5100.writeSnMR(s, SnMR::IPRAW);
+    W5100.writeSnPROTO(s, IPPROTO::ICMP);
+    W5100.writeSnIR(s, 0xFF);
+    W5100.execCmdSn(s, Sock_OPEN);
+
+    // ICMP echo request: type 8, code 0, checksum, identifier "RD", sequence, payload
+    pingSeq++;
+    uint8_t packet[12] = {8, 0, 0, 0, 'R', 'D', (uint8_t)(pingSeq >> 8), (uint8_t)pingSeq, 'p', 'i', 'n', 'g'};
+    uint32_t sum = 0;
+    for (byte i = 0; i < sizeof(packet); i += 2) sum += ((uint16_t)packet[i] << 8) | packet[i + 1];
+    while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+    sum = ~sum;
+    packet[2] = sum >> 8;
+    packet[3] = sum & 0xFF;
+
+    uint8_t gw[4] = {dhcpServer[0], dhcpServer[1], dhcpServer[2], dhcpServer[3]};
+    W5100.writeSnDIPR(s, gw);
+    uint16_t txPtr = W5100.readSnTX_WR(s);
+    w5xBufferCopy(s, txPtr, packet, sizeof(packet), true);
+    W5100.writeSnTX_WR(s, txPtr + sizeof(packet));
+    W5100.execCmdSn(s, Sock_SEND);
+
+    unsigned long start = millis();
+    while (!replied && millis() - start < pingTimeout) {
+        if (W5100.readSnIR(s) & SnIR::TIMEOUT) break; // gateway did not answer ARP
+        if (W5100.readSnRX_RSR(s) < 6) continue;
+        // Received packet: 4 bytes source IP + 2 bytes length + ICMP message
+        uint16_t rxPtr = W5100.readSnRX_RD(s);
+        uint8_t reply[6 + sizeof(packet)];
+        w5xBufferCopy(s, rxPtr, reply, sizeof(reply), false);
+        uint16_t len = ((uint16_t)reply[4] << 8) | reply[5];
+        replied = len >= 8 && reply[6] == 0 && reply[10] == 'R' && reply[11] == 'D' && reply[12] == packet[6] && reply[13] == packet[7];
+        W5100.writeSnRX_RD(s, rxPtr + 6 + len);
+        W5100.execCmdSn(s, Sock_RECV);
+    }
+    W5100.execCmdSn(s, Sock_CLOSE);
+    W5100.writeSnIR(s, 0xFF);
+    SPI.endTransaction();
+    return replied;
+}
+
+// Check the Ethernet module - ping the gateway, reset the module after repeated failures
+void checkEthernet() {
+    static byte pingFailCount = 0;
+    if (!dhcpSuccess) return; // no IP yet, DHCP retries are handled by IPrenew()
+    if (Ethernet.localIP()[0] == 0) { // module lost its configuration (spontaneous reset)
+        dbgln(F("Ethernet module lost configuration, resetting."));
+        resetEthernetModule();
+        pingFailCount = 0;
+        return;
+    }
+    saveEthConfig();
+    if (pingGateway()) {
+        pingFailCount = 0;
+        return;
+    }
+    pingFailCount++;
+    dbg(F("Gateway ping failed: ")); dbgln(String(pingFailCount));
+    if (pingFailCount >= pingFailLimit) {
+        dbgln(F("Gateway unreachable, resetting Ethernet module."));
+        resetEthernetModule();
+        pingFailCount = 0;
+    }
 }
 
 // Parse parameter value from HTTP request
@@ -799,17 +879,6 @@ void handleWebServer() {
                         }
                     }
 
-                    // Update gateway enabled
-                    if (request.indexOf(F("gatewayEnabled=")) != -1) {
-                        value = parseParam(request, F("gatewayEnabled="), startIdx, endIdx);
-                        if (startIdx != -1) {
-                            bool newValue = (value == "1");
-                            gatewayEnabled = newValue;
-                            EEPROM.put(EEPROM_GATEWAYON, gatewayEnabled);
-                            dbg(F("Gateway enabled updated: ")); dbgln(String(gatewayEnabled));
-                        }
-                    }
-
                     // Update UDP control enable state
                     if (request.indexOf(F("useUDPctrl=")) != -1) {
                         value = parseParam(request, F("useUDPctrl="), startIdx, endIdx);
@@ -818,7 +887,7 @@ void handleWebServer() {
                             if (newValue != useUDPctrl) {
                                 useUDPctrl = newValue;
                                 EEPROM.put(EEPROM_UDPCONTROLON, useUDPctrl);
-                                if (useUDPctrl) {
+                                if (useUDPctrl || gatewayEnabled) {
                                     udpRecv.begin(listenPort);
                                 } else {
                                     udpRecv.stop(); // Uvolní socket
@@ -1212,7 +1281,7 @@ void handleWebServer() {
                         client.print(pulseOnDI12 ? F("selected") : F(""));
                         client.println(F(">DI12</option></select></div>"));
                         client.println(F("</div></td></tr>"));
-                        client.print(F("<tr><td>LAN-RS485 Gateway</td><td><select id='gatewayEnabled' onchange='sendCommand(\"gatewayEnabled\",this.value)'>"));
+                        client.print(F("<tr><td>LAN-RS485 Gateway (DIP 5)</td><td><select id='gatewayEnabled' disabled>"));
                         client.print(F("<option value='0' "));
                         if (!gatewayEnabled) client.print(F("selected"));
                         client.print(F(">Off</option><option value='1' "));
@@ -1616,6 +1685,9 @@ void handleWebServer() {
 
 // Initialize the device
 void setup() {
+    // Watchdog stays enabled after software reset (resetFunc) - disable it until setup is done
+    MCUSR = 0;
+    wdt_disable();
 
     // Generic pin and command initialization
     auto initPins = [](int count, const int* pins) {
@@ -1667,6 +1739,9 @@ void setup() {
     initEEPROM(EEPROM_PULSEON_DI11, pulseOnDI11, false);
     initEEPROM(EEPROM_PULSEON_DI12, pulseOnDI12, false);
     initEEPROM(EEPROM_GATEWAYON, gatewayEnabled, false);
+    initEEPROM(EEPROM_UDPCONTROLON, useUDPctrl, true);
+    initEEPROMUL(EEPROM_1WIRECYCLE, oneWireCycle, 30000UL);
+    initEEPROMUL(EEPROM_PULSECYCLE, pulseSendCycle, 10000UL);
     initEEPROMUL(EEPROM_ANAINCYCLE, anaInputCycle, 10000UL);
     initEEPROMUL(EEPROM_LANCYCLE, checkInterval, 10000UL);
     initEEPROMUL(EEPROM_BAUDRATE, baudRate, 115200UL);
@@ -1803,7 +1878,6 @@ void setup() {
     pinMode(dipSwitchPins[4], INPUT);           // DIP 5
     if (digitalRead(dipSwitchPins[4]) == LOW) {        // DIP 5 = ON
         gatewayEnabled = true;
-        useUDPctrl = false;                            // pro jistotu
         EEPROM.put(EEPROM_GATEWAYON, true);            // uložit do EEPROM
         dbgln(F("DIP 5 = ON  -> Gateway enabled (Text UDP protocol over RS485)"));
     } else {
@@ -1816,31 +1890,32 @@ void setup() {
     ethernetOK = ethShieldDetected();
     dbgln(ethernetOK ? "Ethernet shield detected" : "Ethernet shield NOT detected");
 
-    pinMode(dipSwitchPins[4], INPUT);
-    if (!digitalRead(dipSwitchPins[4])) { dipSwitchEthOn = 1; dbgln("Ethernet enabled");
-    } else { dipSwitchEthOn = 0; dbgln("Ethernet disabled"); }
-
-    if (ethernetOK && dipSwitchEthOn) {
+    if (ethernetOK) {
         mac[5] = 0xED + boardAddress;
-        while (!Ethernet.begin(mac)) {
+        for (int i = 0; i < 3 && !dhcpSuccess; i++) {
             dbgln("Attempting to obtain IP address...");
             digitalWrite(ledPins[0], HIGH);
-            delay(1000);
+            dhcpSuccess = Ethernet.begin(mac, dhcpTimeout, dhcpResponseTimeout);
         }
-        if (useUDPctrl) {
+        dbgln("Ethernet chip: W5" + String(W5100.getChip() % 10) + "00");
+        if (useUDPctrl || gatewayEnabled) {
             udpRecv.begin(listenPort);
         }
         udpSend.begin(sendPort);
         server.begin();
-        dbgln("IP address: " + ipToString(Ethernet.localIP()));
-        dhcpServer = Ethernet.gatewayIP();
-        dbgln("Gateway (DHCP): " + ipToString(dhcpServer));
+        if (dhcpSuccess) {
+            saveEthConfig();
+            dbgln("IP address: " + ipToString(Ethernet.localIP()));
+            dbgln("Gateway (DHCP): " + ipToString(dhcpServer));
+        } else {
+            dbgln("DHCP failed, retrying in background");
+        }
         digitalWrite(ledPins[0], LOW);
     }
 
     // Initialize MODBUS and RS485
     memset(Mb.MbData, 0, sizeof(Mb.MbData));
-    modbus_configure(&Serial3, baudRate, SERIAL_8N1, boardAddress, serial3TxControl, sizeof(Mb.MbData), Mb.MbData);
+    modbus_configure(&Serial3, baudRate, SERIAL_8N1, boardAddress, serial3TxControl, MbDataLen, Mb.MbData);
     Serial3.begin(baudRate);
     Serial3.setTimeout(serial3TimeOut);
     pinMode(serial3TxControl, OUTPUT);
@@ -1857,7 +1932,7 @@ void loop() {
     wdt_reset(); // Reset watchdog timer
 
     // Handle webserver requests if Ethernet is enabled
-    if (ethernetOK && dipSwitchEthOn) {
+    if (ethernetOK) {
         handleWebServer();
         if (!useUDPctrl) {
             Mb.MbsRun(); 
@@ -1927,31 +2002,35 @@ void sendPulsePacket() {
     char prefix[5];
     strncpy_P(prefix, digInputStr, sizeof(prefix));
     prefix[sizeof(prefix) - 1] = '\0';
+    // Read and reset counters atomically (interrupts off) - pulses arriving during sendMsg() are kept for the next cycle
+    noInterrupts();
+    sentPulse1 = pulse1; pulse1 = 0;
+    sentPulse2 = pulse2; pulse2 = 0;
+    sentPulse3 = pulse3; pulse3 = 0;
+    interrupts();
     if (pulseOnDI10) {
-        sentPulse1 = pulse1;
         sendMsg(String(prefix) + "10 " + String(sentPulse1));
-        pulse1 = 0;
     }
     if (pulseOnDI11) {
-        sentPulse2 = pulse2;
         sendMsg(String(prefix) + "11 " + String(sentPulse2));
-        pulse2 = 0;
     }
     if (pulseOnDI12) {
-        sentPulse3 = pulse3;
         sendMsg(String(prefix) + "12 " + String(sentPulse3));
-        pulse3 = 0;
     }
 }
 
-// Maintain Ethernet connection
+// Maintain Ethernet connection - DHCP lease renewal and retries (each attempt blocks up to dhcpTimeout)
 void IPrenew() {
+    static unsigned long nextMaintain = 0;
+    if ((long)(millis() - nextMaintain) < 0) return;
+    nextMaintain = millis() + 1000;
+    wdt_reset();
     byte rtnVal = Ethernet.maintain();
     switch(rtnVal) {
-        case 1: dbgln(F("DHCP renew fail")); break;
-        case 2: dbgln(F("DHCP renew ok")); break;
-        case 3: dbgln(F("DHCP rebind fail")); break;
-        case 4: dbgln(F("DHCP rebind ok")); break; 
+        case 1: dbgln(F("DHCP renew fail")); nextMaintain = millis() + dhcpRetryDelay; break;
+        case 2: dbgln(F("DHCP renew ok")); dhcpSuccess = true; saveEthConfig(); break;
+        case 3: dbgln(F("DHCP rebind fail")); nextMaintain = millis() + dhcpRetryDelay; break;
+        case 4: dbgln(F("DHCP rebind ok")); dhcpSuccess = true; saveEthConfig(); break;
     }
 }
 
@@ -1985,7 +2064,7 @@ String oneWireAddressToString(byte addr[]) {
 // Search for 1-Wire sensors
 void lookUpSensors() {
     byte j=0, k=0, l=0, m=0;
-    while ((j <= maxSensors) && (ds.search(sensors[j]))) {
+    while ((j < maxSensors) && (ds.search(sensors[j]))) {
         if (OneWire::crc8(sensors[j], 7) == sensors[j][7]) {
             if (sensors[j][0] == 38) {
                 for (l=0; l<8; l++) { sensors2438[k][l]=sensors[j][l]; }  
@@ -2002,6 +2081,9 @@ void lookUpSensors() {
     DS18B20count = m;
     dbg("1-wire sensors found: ");
     dbgln(String(k+m));
+    if (j == maxSensors && ds.search(oneWireAddr)) {
+        dbgln(F("More than 10 1-wire sensors on the bus, the rest is ignored"));
+    }
 }
 
 // Set resolution for DS18B20 sensors
@@ -2191,7 +2273,7 @@ void sendMsg(String message) {
         digitalWrite(serial3TxControl, HIGH);
         Serial3.print(fullMessage);
         Serial3.println();
-        delay(serial3TxDelay); 
+        Serial3.flush(); // wait until the last byte is sent, then release the bus
         digitalWrite(serial3TxControl, LOW);
         dbgln("Sent via RS485: " + fullMessage);
     }
@@ -2243,46 +2325,71 @@ void setAnaOut(int pwm, int value) {
     analogWrite(anaOutPins[pwm], value);
 }
 
-// Receive and parse incoming packet
+// Returns true if message is addressed to this module (e.g. "rail1 ..." but not "rail12 ...")
+bool isForThisModule(const char* msg) {
+    size_t len = strlen(boardAddressRailStr);
+    return strncmp(msg, boardAddressRailStr, len) == 0 && (msg[len] == ' ' || msg[len] == '\0');
+}
+
+// Receive incoming UDP packet (whole message including "railX" prefix)
 boolean receivePacket(String *cmd) {
-    if (ethernetOK && useUDPctrl) {
+    if (ethernetOK && (useUDPctrl || gatewayEnabled)) {
         int packetSize = udpRecv.parsePacket();
         if (packetSize) {
             memset(inputPacketBuffer, 0, sizeof(inputPacketBuffer));
-            udpRecv.read(inputPacketBuffer, inputPacketBufferSize);
+            udpRecv.read(inputPacketBuffer, inputPacketBufferSize - 1);
             *cmd = String(inputPacketBuffer);
-           if (strncmp(cmd->c_str(), boardAddressRailStr, strlen(boardAddressRailStr)) == 0) {
-                *cmd = cmd->substring(strlen(boardAddressRailStr));
-                cmd->trim();
-                return true;
-            }
+            cmd->trim();
+            return true;
         }
     }
     return false;
 }
 
+// Read text messages from RS485 line by line (gateway mode)
 void processRS485ToLAN() {
     static String rs485Buffer = "";
     static unsigned long lastCharTime = 0;
+    static bool overflow = false; // line too long - discard it
 
     while (Serial3.available() > 0) {
         char c = Serial3.read();
-        rs485Buffer += c;
         lastCharTime = millis();
+        if (c == '\n' || c == '\r') {
+            if (!overflow) processRS485Message(rs485Buffer);
+            rs485Buffer = "";
+            overflow = false;
+        } else if (rs485Buffer.length() < rs485MaxMsgLen) {
+            rs485Buffer += c;
+        } else {
+            overflow = true;
+        }
     }
 
-    if (rs485Buffer.length() > 0 && 
-        (rs485Buffer.indexOf('\n') >= 0 || 
-         rs485Buffer.indexOf('\r') >= 0 || 
-         (millis() - lastCharTime > 25))) {
+    // Message without line ending - process it after 25 ms of silence
+    if ((rs485Buffer.length() > 0 || overflow) && millis() - lastCharTime > 25) {
+        if (!overflow) processRS485Message(rs485Buffer);
+        rs485Buffer = "";
+        overflow = false;
+    }
+}
 
+// Process one text message received from RS485
+void processRS485Message(String rs485Buffer) {
         rs485Buffer.trim();
 
         if (rs485Buffer.length() > 0) {
             dbgln("RS485: [" + rs485Buffer + "]");
 
-            bool isLocal = strncmp(rs485Buffer.c_str(), boardAddressRailStr, strlen(boardAddressRailStr)) == 0;
-            String cmd = isLocal ? rs485Buffer.substring(strlen(boardAddressRailStr)) : rs485Buffer;
+            // Messages for other modules (e.g. their input reports) are forwarded to LAN, only own commands are executed
+            bool isLocal = isForThisModule(rs485Buffer.c_str());
+            if (!isLocal && ethernetOK && dhcpSuccess) {
+                udpSend.beginPacket(sendIpAddress, remPort);
+                udpSend.print(rs485Buffer);
+                udpSend.endPacket();
+                dbgln("Forwarded to LAN: " + rs485Buffer);
+            }
+            String cmd = isLocal ? rs485Buffer.substring(strlen(boardAddressRailStr)) : "";
             cmd.trim();
 
             cmd.replace("\n", "");
@@ -2403,10 +2510,7 @@ void processRS485ToLAN() {
 
                 digitalWrite(ledPins[1], LOW);
             }
-
-            rs485Buffer = "";
         }
-    }
 }
 
 // Process incoming commands
@@ -2466,11 +2570,22 @@ void processCommands() {
         resetFunc();
     }
 
-    // Process UDP commands
-    if (useUDPctrl) {
-        String cmd, originalCmd; 
-        if (receivePacket(&cmd)) {
-            originalCmd = cmd;
+    // Process UDP commands - commands for this module are executed (UDP control),
+    // commands for other modules are forwarded to RS485 (gateway)
+    String cmd;
+    if (receivePacket(&cmd)) {
+        if (!isForThisModule(cmd.c_str())) {
+            if (gatewayEnabled) {
+                digitalWrite(serial3TxControl, HIGH);
+                Serial3.print(cmd + "\n");
+                Serial3.flush(); // wait until the last byte is sent, then release the bus
+                digitalWrite(serial3TxControl, LOW);
+                dbg("Forwarded to RS485: ");
+                dbgln(cmd);
+            }
+        } else if (useUDPctrl) {
+            cmd = cmd.substring(strlen(boardAddressRailStr));
+            cmd.trim();
             dbg("Received packet: ");
             dbgln(cmd);
             digitalWrite(ledPins[1], HIGH);
@@ -2561,15 +2676,6 @@ void processCommands() {
                         }
                     }
                 }
-            }
-
-            if (gatewayEnabled) {
-                digitalWrite(serial3TxControl, HIGH);
-                Serial3.print(originalCmd + "\n");
-                delay(serial3TxDelay);
-                digitalWrite(serial3TxControl, LOW);
-                dbg("Forwarded to RS485: ");
-                dbgln(originalCmd);
             }
 
             digitalWrite(ledPins[1], LOW);

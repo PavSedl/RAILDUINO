@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "14102026"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "15102026"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -36,11 +36,15 @@ const char docsContentHeader[] PROGMEM = R"=====(
 const char docsContentUDPSyntax1[] PROGMEM = R"=====(
     <h3>UDP</h3>
     <pre>
+ports:
+  module receives commands:       44444
+  module sends signals to:        55555 (broadcast)
 signals:
   DS18B20 1wire sensor packet:    rail1 1w 2864fc3008082 25.44
   DS2438 1wire sensor packet:     rail1 1w 2612c3102004f 25.44 1.23 0.12
   digital input state:            rail1 di1 1
-  analog input state:             rail1 ai1 1020
+  pulse count (DI10-12):          rail1 di10 25
+  analog input state:             rail1 ai1 1020.00
 )=====";
 
 const char docsContentUDPSyntax2[] PROGMEM = R"=====(
@@ -58,14 +62,16 @@ commands:
 default scan cycles:
   1wire cycle:                    30000 ms
   analog input cycle:             10000 ms
+  pulses send cycle:              10000 ms
+  ping DHCP (gateway) cycle:      10000 ms
     </pre>
 )=====";
 
 const char docsContentModbus[] PROGMEM = R"=====(
     <h3>MODBUS</h3>
     <pre>
-MODBUS TCP commands: FC1 - FC16
-MODBUS RTU commands: FC3, FC6, FC16
+MODBUS TCP commands: FC1 - FC16 (outputs control protocol Modbus TCP)
+MODBUS RTU commands: FC3, FC6, FC16 (LAN-RS485 gateway off), max. 29 registers per FC3 request
 
 Registers are 2 bytes (16 bits) - only least significant byte (LSB) is used
     
@@ -107,7 +113,11 @@ const char docsContentFooter[] PROGMEM = R"=====(
     <h3>Additional Notes</h3>
     <pre>
 Combination of 1wire sensors must be up to 10pcs maximum (DS18B20 or DS2438)
-Using RS485 the UDP syntax must have \n symbol at the end of the command line
+LAN-RS485 gateway is enabled in webserver and works with outputs control protocol UDP only:
+  - RS485 uses the UDP text syntax instead of Modbus RTU
+  - each RS485 message must end with \n (or \r), max. 64 characters
+  - messages for other modules (railX) are forwarded between LAN and RS485
+UDP command max. 23 characters
     </pre>
 </body>
 </html>
@@ -346,7 +356,7 @@ void resetEthernetModule() {
     digitalWrite(resetPin, HIGH);
     delay(200);
     Ethernet.begin(mac, ethIP, Ethernet.dnsServerIP(), dhcpServer, ethSubnet);
-    if (useUDPctrl || gatewayEnabled) {
+    if (useUDPctrl) {
         udpRecv.begin(listenPort);
     }
     udpSend.begin(sendPort);
@@ -392,7 +402,7 @@ bool pingGateway() {
     }
     if (s == MAX_SOCK_NUM) { // still no free socket - skip this check
         dbgln(F("Gateway ping skipped - no free socket"));
-        if (udpRecvClosed && (useUDPctrl || gatewayEnabled)) udpRecv.begin(listenPort);
+        if (udpRecvClosed && useUDPctrl) udpRecv.begin(listenPort);
         return true;
     }
 
@@ -435,7 +445,7 @@ bool pingGateway() {
     W5100.execCmdSn(s, Sock_CLOSE);
     W5100.writeSnIR(s, 0xFF);
     SPI.endTransaction();
-    if (udpRecvClosed && (useUDPctrl || gatewayEnabled)) udpRecv.begin(listenPort);
+    if (udpRecvClosed && useUDPctrl) udpRecv.begin(listenPort);
     return replied;
 }
 
@@ -757,7 +767,7 @@ void handleWebServer() {
                         value = parseParam(request, F("oneWireCycle="), startIdx, endIdx);
                         if (startIdx != -1) {
                             unsigned long val = value.toInt();
-                            if (val >= 1000 && val <= 60000) {
+                            if (val >= 5000 && val <= 60000) {
                                 oneWireCycle = val;
                                 oneWireTimer.sleep(oneWireCycle);
                                 EEPROM.put(EEPROM_1WIRECYCLE, oneWireCycle);
@@ -771,7 +781,7 @@ void handleWebServer() {
                         value = parseParam(request, F("anaInputCycle="), startIdx, endIdx);
                         if (startIdx != -1) {
                             unsigned long val = value.toInt();
-                            if (val >= 1000 && val <= 60000) {
+                            if (val >= 2000 && val <= 60000) {
                                 anaInputCycle = val;
                                 analogTimer.sleep(anaInputCycle);
                                 EEPROM.put(EEPROM_ANAINCYCLE, anaInputCycle);
@@ -785,7 +795,7 @@ void handleWebServer() {
                         value = parseParam(request, F("pulseSendCycle="), startIdx, endIdx);
                         if (startIdx != -1) {
                             unsigned long val = value.toInt();
-                            if (val >= 1000 && val <= 60000) {
+                            if (val >= 2000 && val <= 60000) {
                                 pulseSendCycle = val;
                                 EEPROM.put(EEPROM_PULSECYCLE, pulseSendCycle);
                                 if (pulseOnDI10 || pulseOnDI11 || pulseOnDI12) pulseTimer.sleep(pulseSendCycle);
@@ -799,7 +809,7 @@ void handleWebServer() {
                         value = parseParam(request, F("checkInterval="), startIdx, endIdx);
                         if (startIdx != -1) {
                             unsigned long val = value.toInt();
-                            if (val >= 1000 && val <= 3600000) {
+                            if (val >= 2000 && val <= 3600000) {
                                 checkInterval = val;
                                 checkEthernetTimer.sleep(checkInterval);
                                 EEPROM.put(EEPROM_LANCYCLE, checkInterval);
@@ -813,7 +823,7 @@ void handleWebServer() {
                         value = parseParam(request, F("baudRate="), startIdx, endIdx);
                         if (startIdx != -1) {
                             long val = value.toInt();
-                            if (val >= 100 && val <= 115200) {
+                            if (val >= 1200 && val <= 115200) {
                                 baudRate = val;
                                 EEPROM.put(EEPROM_BAUDRATE, baudRate);
                                 Serial3.begin(baudRate);
@@ -905,13 +915,25 @@ void handleWebServer() {
                             if (newValue != useUDPctrl) {
                                 useUDPctrl = newValue;
                                 EEPROM.put(EEPROM_UDPCONTROLON, useUDPctrl);
-                                if (useUDPctrl || gatewayEnabled) {
+                                if (useUDPctrl) {
                                     udpRecv.begin(listenPort);
                                 } else {
                                     udpRecv.stop(); // Uvolní socket
+                                    gatewayEnabled = false; // gateway works in UDP mode only
+                                    EEPROM.put(EEPROM_GATEWAYON, gatewayEnabled);
                                 }
                                 dbg(F("Outputs control protocol changed: ")); dbgln(String(useUDPctrl));
                             }
+                        }
+                    }
+
+                    // Update gateway enabled (available in UDP mode only)
+                    if (request.indexOf(F("gatewayEnabled=")) != -1) {
+                        value = parseParam(request, F("gatewayEnabled="), startIdx, endIdx);
+                        if (startIdx != -1) {
+                            gatewayEnabled = (value == "1") && useUDPctrl;
+                            EEPROM.put(EEPROM_GATEWAYON, gatewayEnabled);
+                            dbg(F("Gateway enabled updated: ")); dbgln(String(gatewayEnabled));
                         }
                     }
 
@@ -1264,18 +1286,19 @@ void handleWebServer() {
                         client.print(F("</td></tr><tr><td>Firmware version</td><td>"));
                         client.print(fwVer);
                         client.print(F("</td></tr><tr><td></td><td><tr><td></td><td></td></tr>"));
-                        client.print(F("</td></tr></table></td><td width='50%'><h3>Configuration Settings</h3><table class='other-settings-table'><tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' max='600000' style='width:80px;' value='"));
+                        client.print(F("</td></tr></table></td><td width='50%'><h3>Configuration Settings</h3><table class='other-settings-table'><tr><td>1-Wire Cycle</td><td><input type='number' id='oneWireCycle' min='5000' max='60000' style='width:80px;' value='"));
                         client.print(String(oneWireCycle));
-                        client.print(F("' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr><tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' max='600000' style='width:80px;' value='"));
+                        client.print(F("' onchange='sendCommand(\"oneWireCycle\",this.value)'> ms</td></tr><tr><td>Analog Input Cycle</td><td><input type='number' id='anaInputCycle' min='2000' max='60000' style='width:80px;' value='"));
                         client.print(String(anaInputCycle));
-                        client.print(F("' onchange='sendCommand(\"anaInputCycle\",this.value)'> ms</td></tr><tr><td>Pulses Send Cycle</td><td><input type='number' id='pulseSendCycle' min='2000' max='600000' style='width:80px;' value='"));
+                        client.print(F("' onchange='sendCommand(\"anaInputCycle\",this.value)'> ms</td></tr><tr><td>Pulses Send Cycle</td><td><input type='number' id='pulseSendCycle' min='2000' max='60000' style='width:80px;' value='"));
                         client.print(String(pulseSendCycle));
-                        client.print(F("' onchange='sendCommand(\"pulseSendCycle\",this.value)'> ms</td></tr><tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='2000' max='600000' style='width:80px;' value='"));
+                        client.print(F("' onchange='sendCommand(\"pulseSendCycle\",this.value)'> ms</td></tr><tr><td>Ping DHCP Cycle</td><td><input type='number' id='checkInterval' min='2000' max='3600000' style='width:80px;' value='"));
                         client.print(String(checkInterval));
                         client.print(F("' onchange='sendCommand(\"checkInterval\",this.value)'> ms</td></tr><tr><td>RS485 Baud Rate</td><td><input type='number' id='baudRate' min='1200' max='115200' style='width:80px;' value='"));
                         client.print(String(baudRate));
                         client.print(F("' onchange='sendCommand(\"baudRate\",this.value)'> Bd</td></tr>"));
-                        client.print(F("<tr><td>Outputs control protocol</td><td><select id='useUDPctrl' onchange='sendCommand(\"useUDPctrl\",this.value)'>"));
+                        client.print(F("<tr><td>Outputs control protocol</td><td><select id='useUDPctrl' onchange='sendCommand(\"useUDPctrl\",this.value);"
+                                        "let g=document.getElementById(\"gatewayEnabled\");g.disabled=this.value==\"0\";if(this.value==\"0\")g.value=\"0\";'>"));
                         client.print(F("<option value='0' "));
                         if (!useUDPctrl) client.print(F("selected"));
                         client.print(F(">Modbus TCP</option><option value='1' "));
@@ -1299,7 +1322,9 @@ void handleWebServer() {
                         client.print(pulseOnDI12 ? F("selected") : F(""));
                         client.println(F(">DI12</option></select></div>"));
                         client.println(F("</div></td></tr>"));
-                        client.print(F("<tr><td>LAN-RS485 Gateway (DIP 5)</td><td><select id='gatewayEnabled' disabled>"));
+                        client.print(F("<tr><td>LAN-RS485 Gateway (UDP only)</td><td><select id='gatewayEnabled' onchange='sendCommand(\"gatewayEnabled\",this.value)'"));
+                        if (!useUDPctrl) client.print(F(" disabled"));
+                        client.print(F(">"));
                         client.print(F("<option value='0' "));
                         if (!gatewayEnabled) client.print(F("selected"));
                         client.print(F(">Off</option><option value='1' "));
@@ -1893,16 +1918,12 @@ void setup() {
     strcpy_P(boardAddressRailStr, railStr); // Načte "rail" z PROGMEM
     strcat(boardAddressRailStr, boardAddressStr.c_str()); // Přidá číslo adresy
 
-    pinMode(dipSwitchPins[4], INPUT);           // DIP 5
-    if (digitalRead(dipSwitchPins[4]) == LOW) {        // DIP 5 = ON
-        gatewayEnabled = true;
-        EEPROM.put(EEPROM_GATEWAYON, true);            // uložit do EEPROM
-        dbgln(F("DIP 5 = ON  -> Gateway enabled (Text UDP protocol over RS485)"));
-    } else {
+    // LAN-RS485 gateway (text protocol on RS485) is set from webserver and works in UDP mode only
+    if (gatewayEnabled && !useUDPctrl) {
         gatewayEnabled = false;
         EEPROM.put(EEPROM_GATEWAYON, false);
-        dbgln(F("DIP 5 = OFF -> Modbus RTU mode"));
     }
+    dbgln(gatewayEnabled ? F("Gateway enabled (text protocol over RS485)") : F("Modbus RTU on RS485"));
 
     // Initialize Ethernet
     ethernetOK = ethShieldDetected();
@@ -1916,7 +1937,7 @@ void setup() {
             dhcpSuccess = Ethernet.begin(mac, dhcpTimeout, dhcpResponseTimeout);
         }
         dbgln("Ethernet chip: W5" + String(W5100.getChip() % 10) + "00");
-        if (useUDPctrl || gatewayEnabled) {
+        if (useUDPctrl) {
             udpRecv.begin(listenPort);
         }
         udpSend.begin(sendPort);
@@ -2351,7 +2372,7 @@ bool isForThisModule(const char* msg) {
 
 // Receive incoming UDP packet (whole message including "railX" prefix)
 boolean receivePacket(String *cmd) {
-    if (ethernetOK && (useUDPctrl || gatewayEnabled)) {
+    if (ethernetOK && useUDPctrl) {
         int packetSize = udpRecv.parsePacket();
         if (packetSize) {
             memset(inputPacketBuffer, 0, sizeof(inputPacketBuffer));
@@ -2589,7 +2610,8 @@ void processCommands() {
     }
 
     // Process UDP commands - commands for this module are executed (UDP control),
-    // commands for other modules are forwarded to RS485 (gateway)
+    // commands for other modules are forwarded to RS485 (gateway) - UDP receiver is open in UDP mode only,
+    // in Modbus TCP mode its socket is needed by the webserver (W5100 has only 4 sockets)
     String cmd;
     if (receivePacket(&cmd)) {
         if (!isForThisModule(cmd.c_str())) {

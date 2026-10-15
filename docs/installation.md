@@ -23,10 +23,10 @@ Mounting onto DIN rail -- click the Railduino Module onto the DIN rail (TS 35) a
 !!! info "Pins 5-8 - Other functions"
 	- pins 5-7 are disabled as default  
     - enable power supply (pin 8) is enabled as default - it means the module hw remote switch off is disabled - power supply is allways on.
-    - pin 5 also switches RS485 (pin 5 ON) / Modbus RTU protocol (pin 5 OFF)
+    - pins 5 and 6 have no function - the RS485-LAN gateway is enabled in the [webserver](webserver.md) (available with outputs control protocol UDP only)
 	<table>
 	  <th>Pin</th><th>Function</th><th>ON</th><th>OFF</th>
-	  <tr><td>5</td><td>Gateway RS485-LAN</td><td>Enabled</td><td>Disabled</td></tr>
+	  <tr><td>5</td><td>Reserved</td><td>-</td><td>-</td></tr>
 	  <tr><td>6</td><td>Reserved</td><td>-</td><td>-</td></tr>
 	  <tr><td>7</td><td>RS485 terminator</td><td>Enabled</td><td>Disabled</td></tr>
 	  <tr><td>8</td><td>Enable power supply</td><td>Enabled</td><td>Disabled</td></tr>
@@ -41,7 +41,7 @@ Mounting onto DIN rail -- click the Railduino Module onto the DIN rail (TS 35) a
 !!! led-blue "BLUE LED"
 	<span class="blue-led-off"></span> - do not lit - no power supply, boot up phase or module failure  
 	<span class="blue-led-animation"></span> - flashes 1 Hz - device operating OK  
-	<span class="blue-led-on"></span> - lit - awaiting IP address from the DHCP server
+	<span class="blue-led-on"></span> - lit - awaiting IP address from the DHCP server (max. approx. 15 s after power up, then the module runs without LAN and retries DHCP every 60 s)
 !!! led-green "GREEN LED"
 	<span class="green-led-off"></span> - do not lit - no ongoing communication - device operating OK  
 	<span class="green-led-animation"></span> - flashes - device communicating   

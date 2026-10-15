@@ -22,13 +22,14 @@ Default communication settings of the Railduino module:
 
 ### LAN network  
 
-- UDP incoming port 55555  
-- UDP outgoing port 44444
+- UDP port 55555 - the module sends signals (broadcast), set as receive port in the supervisory system  
+- UDP port 44444 - the module receives commands
 - MODBUS TCP port 502  
-- IP address - dynamic – DHCP server must be present
+- IP address - dynamic – DHCP server must be present (MAC address is derived from the DIP address, use DHCP reservation for a fixed IP)
 
 ### RS485 serial bus  
 
+- Protocol - Modbus RTU, or UDP text syntax when the RS485-LAN gateway is enabled in the webserver  
 - Communication speed adjustable via webserver - default 115200 Bd
 - Number of data bits 8  
 - Number of stop bits 1  

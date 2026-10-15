@@ -19,9 +19,20 @@ Basic info about the module with the possibility to add **Description** of the m
 !!! info "Other settings values limitation"
 	1-wire Cycle - min.  **5s**, max  **60s**, default **30s**  
 	Analog Input Cycle - min.  **2s**, max  **60s**, default **10s**  
-	Pulses Send Cycle - min.  **2s**, max  **60s**, default **20s**  
-	Ping DHCP Cycle - min.  **2s**, max  **60s**, default **10s**  
+	Pulses Send Cycle - min.  **2s**, max  **60s**, default **10s**  
+	Ping DHCP Cycle - min.  **2s**, max  **60min**, default **10s**  
 	RS485 Baud Rate - min.  **1200 Bd**, max  **115200 Bd**, default **115200 Bd**   
+
+!!! info "Ping DHCP Cycle - LAN watchdog"
+	The module pings the gateway (DHCP server) in this cycle. After 3 failed pings in a row the Ethernet module is reset
+	and the last IP address is restored - the module itself is not restarted and the outputs keep their states.
+
+!!! info "Outputs control protocol and LAN-RS485 Gateway"
+	- **UDP** - outputs are controlled by UDP commands, the LAN-RS485 Gateway can be switched On/Off  
+	- **Modbus TCP** - outputs are controlled by Modbus TCP, the LAN-RS485 Gateway is always Off  
+	- **Gateway Off** - RS485 bus uses Modbus RTU  
+	- **Gateway On** - RS485 bus uses the UDP text syntax, messages for other modules are forwarded between LAN and RS485 - *see [UDP](udp.md)*  
+	- changes take effect immediately, no reboot is needed
 
 !!! tip "When hovering with cursor over output - the tooltip with protocol info is displayed"
 	<figure markdown="span">

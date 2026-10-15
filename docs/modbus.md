@@ -1,7 +1,8 @@
 # Modbus settings
 !!! note "Modbus TCP and RTU"
-	- Modbus TCP is used for communication over LAN - functions FC: 1, 2, 3, 4, 5, 6, 15, 16
-	- Modbus RTU is used for communication over RS485 - functions FC: 3, 6, 16
+	- Modbus TCP is used for communication over LAN - functions FC: 1, 2, 3, 4, 5, 6, 15, 16 (outputs control protocol Modbus TCP set in the webserver)
+	- Modbus RTU is used for communication over RS485 - functions FC: 3, 6, 16 (LAN-RS485 gateway Off)
+	- Modbus RTU - max. 29 registers can be read by one FC3 request
 
 ## Modbus register map
 
@@ -13,7 +14,7 @@
    
 >      0 - bits 0-7: relay outputs 1-8  
 >      1 - bits 16-19: relay outputs 9-12  
->      2 - bits 32-39: digital outputs HSS 1-4, LSS 1-4  
+>      2 - bits 32-39: reserved  
 >      3 - LSB: HSS PWM value 1 (0-255)  
 >      4 - LSB: HSS PWM value 2 (0-255)  
 >      5 - LSB: HSS PWM value 3 (0-255)  
@@ -21,7 +22,7 @@
 >      7 - LSB: LSS PWM value 1 (0-255)  
 >      8 - LSB: LSS PWM value 2 (0-255)  
 >      9 - LSB: LSS PWM value 3 (0-255)  
->      10 - LSB: LSS PWM value 4 (0-255)  
+>      10 - LSB: LSS value 4 (0 or 255, no PWM)  
 >      11 - LSB: analog output 1  
 >      12 - LSB: analog output 2  
 >      13 - bits 208-215: digital inputs 1-8  

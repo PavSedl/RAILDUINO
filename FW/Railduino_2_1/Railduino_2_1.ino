@@ -13,7 +13,7 @@
 */
 
 const char hwVer[] = "2.1"; // Statická hodnota pro hardware verzi
-const char fwVer[] = "15102026"; // Statická hodnota pro firmware verzi
+const char fwVer[] = "13112026"; // Statická hodnota pro firmware verzi
 
 // Documentation content stored in PROGMEM, split into smaller chunks
 const char docsContentHeader[] PROGMEM = R"=====(
@@ -323,6 +323,8 @@ byte resolution = 11; // Reading stage and sensor resolution
 byte sensors[maxSensors][8], DS2438count, DS18B20count; // Sensor address arrays
 byte sensors2438[maxSensors][8], sensors18B20[maxSensors][8]; // DS2438 and DS18B20 addresses
 DS2438 ds2438(&ds); // Instance for DS2438 sensors
+float ds2438Temps[maxSensors], ds2438Vads[maxSensors], ds2438Vsens[maxSensors], ds18b20Temps[maxSensors]; // Last valid values (for webserver)
+byte ds2438Errors[maxSensors], ds18b20Errors[maxSensors]; // Failed reads in a row (0 = last read OK)
 
 // Function to reset the device
 void (* resetFunc) (void) = 0; 
@@ -500,19 +502,7 @@ void handleWebServer() {
                 if (request.indexOf("GET /status") != -1) {
                     client.println(F("HTTP/1.1 200 OK\nContent-Type: application/json\nConnection: close\n"));
 
-                    // Update 1-Wire sensor data if cycle time has elapsed
-                    static unsigned long lastOneWireUpdate = 0;
-                    static float ds2438Temps[10], ds2438Vads[10], ds2438Vsens[10], ds18b20Temps[10];
-                    if (millis() - lastOneWireUpdate >= oneWireCycle) {
-                        for (int i = 0; i < DS2438count; i++) {
-                            ds2438.update(sensors2438[i]);
-                            ds2438Temps[i] = ds2438.getTemperature();
-                            ds2438Vads[i] = ds2438.getVoltage(DS2438_CHA);
-                            ds2438Vsens[i] = ds2438.getVoltage(DS2438_CHB);
-                        }
-                        for (int i = 0; i < DS18B20count; i++) ds18b20Temps[i] = isnan(dsreadtemp(ds, sensors18B20[i])) ? 0.0 : dsreadtemp(ds, sensors18B20[i]);
-                        lastOneWireUpdate = millis();
-                    }
+                    // 1-Wire sensor values are measured in processOnewire() - the webserver does not access the bus
 
                     // Calculate voltages for analog inputs and outputs
                     for (int i = 0; i < numOfAnaInputs; i++) anaInputsVoltage[i] = (analogStatus[i] / 1024.0) * 10.0;
@@ -585,6 +575,7 @@ void handleWebServer() {
                             client.print(F("\",\"temp\":")); client.print(ds2438Temps[i], 2);
                             client.print(F(",\"vad\":")); client.print(ds2438Vads[i], 2);
                             client.print(F(",\"vsens\":")); client.print(ds2438Vsens[i], 2);
+                            client.print(F(",\"err\":")); client.print(ds2438Errors[i]);
                             client.print(F("}")); client.print(i < DS2438count - 1 ? F(",") : F("],"));
                         }
                     } else {
@@ -596,6 +587,7 @@ void handleWebServer() {
                         for (int i = 0; i < DS18B20count; i++) {
                             client.print(F("{\"sn\":\"")); client.print(oneWireAddressToString(sensors18B20[i])); 
                             client.print(F("\",\"temp\":")); client.print(ds18b20Temps[i], 2);
+                            client.print(F(",\"err\":")); client.print(ds18b20Errors[i]);
                             client.print(F("}")); client.print(i < DS18B20count - 1 ? F(",") : F("],"));
                         }
                     } else {
@@ -1168,6 +1160,9 @@ void handleWebServer() {
                         // JavaScript for updating UI
                         client.println(F("<script>"));
                         client.println(F("let firstUpdate=true;let activePWMField=null;let pendingCommands={};let updateIntervalId=null;"));
+                        // Mark 1-Wire sensor with read errors (last valid values are shown)
+                        client.println(F("function owErr(els,err){els.forEach(e=>{e.style.color=err?'red':'';"
+                                        "e.title=err?'Read error '+err+'x in a row - last valid value shown':'';});}"));
                         client.println(F("function updateStatus(){"));
                         client.println(F("fetch('/status').then(response => response.json()).then(data => {"));
                         // Update relays
@@ -1206,14 +1201,16 @@ void handleWebServer() {
                                         "let vsensElem=document.getElementById('ds2438_vsens'+(i+1));"
                                         "if(snElem&&tempElem&&vadElem&&vsensElem){"
                                         "snElem.textContent=data.ds2438[i].sn;"
-                                        "tempElem.textContent=data.ds2438[i].temp+'C';"
+                                        "tempElem.textContent=data.ds2438[i].temp+'C'+(data.ds2438[i].err?' ERR':'');"
                                         "vadElem.textContent=data.ds2438[i].vad+'V';"
-                                        "vsensElem.textContent=data.ds2438[i].vsens+'V';}}"));
+                                        "vsensElem.textContent=data.ds2438[i].vsens+'V';"
+                                        "owErr([snElem,tempElem,vadElem,vsensElem],data.ds2438[i].err);}}"));
                         // Update DS18B20 sensors
                         client.println(F("for(let i=0;i<data.ds18b20.length;i++){"
                                         "let snElem=document.getElementById('ds18b20_sn'+(i+1));"
                                         "let tempElem=document.getElementById('ds18b20_temp'+(i+1));"
-                                        "if(snElem&&tempElem){snElem.textContent=data.ds18b20[i].sn;tempElem.textContent=data.ds18b20[i].temp+'C';}}"));
+                                        "if(snElem&&tempElem){snElem.textContent=data.ds18b20[i].sn;tempElem.textContent=data.ds18b20[i].temp+'C'+(data.ds18b20[i].err?' ERR':'');"
+                                        "owErr([snElem,tempElem],data.ds18b20[i].err);}}"));
                         // Initial UI update
                         client.println(F("if(firstUpdate){"
                                         "let oneWireCycle=document.getElementById('oneWireCycle');if(oneWireCycle)oneWireCycle.value=data.oneWireCycle||30000;"
@@ -2155,10 +2152,11 @@ float dsreadtemp(OneWire ow, byte addr[8]) {
     ow.reset();
     ow.select(addr);
     ow.write(0xBE); // Read scratchpad
-    for (i = 0; i < 9; i++) { 
+    for (i = 0; i < 9; i++) {
         data[i] = ow.read();
     }
-    int16_t TReading = (data[1] << 8) | data[0];  
+    if (OneWire::crc8(data, 8) != data[8]) return NAN; // read error
+    int16_t TReading = (data[1] << 8) | data[0];
     celsius = 0.0625 * TReading;
     return celsius;
 }
@@ -2185,10 +2183,17 @@ void processOnewire() {
                 ds2438.begin();
                 ds2438.update(sensors2438[oneWireCnt]);
                 if (!ds2438.isError()) {
-                    Mb.MbData[oneWireTempByte + (oneWireCnt*3)] = ds2438.getTemperature()*100; 
-                    Mb.MbData[oneWireVadByte + (oneWireCnt*3)] = ds2438.getVoltage(DS2438_CHA)*100; 
-                    Mb.MbData[oneWireVsensByte + (oneWireCnt*3)] = ds2438.getVoltage(DS2438_CHB)*100; 
+                    ds2438Errors[oneWireCnt] = 0;
+                    ds2438Temps[oneWireCnt] = ds2438.getTemperature();
+                    ds2438Vads[oneWireCnt] = ds2438.getVoltage(DS2438_CHA);
+                    ds2438Vsens[oneWireCnt] = ds2438.getVoltage(DS2438_CHB);
+                    Mb.MbData[oneWireTempByte + (oneWireCnt*3)] = ds2438.getTemperature()*100;
+                    Mb.MbData[oneWireVadByte + (oneWireCnt*3)] = ds2438.getVoltage(DS2438_CHA)*100;
+                    Mb.MbData[oneWireVsensByte + (oneWireCnt*3)] = ds2438.getVoltage(DS2438_CHB)*100;
                     sendMsg("1w " + oneWireAddressToString(sensors2438[oneWireCnt]) + " " + String(ds2438.getTemperature(), 2) + " " + String(ds2438.getVoltage(DS2438_CHA), 2) + " " + String(ds2438.getVoltage(DS2438_CHB), 2));
+                } else {
+                    if (ds2438Errors[oneWireCnt] < 255) ds2438Errors[oneWireCnt]++;
+                    dbgln("1-wire read error: " + oneWireAddressToString(sensors2438[oneWireCnt]));
                 }
                 oneWireCnt++;
             } else {
@@ -2213,8 +2218,16 @@ void processOnewire() {
                 return;
             }
             if (oneWireCnt < DS18B20count) {  
-                Mb.MbData[oneWireDS18B20Byte + oneWireCnt] = dsreadtemp(ds, sensors18B20[oneWireCnt])*100; 
-                sendMsg("1w " + oneWireAddressToString(sensors18B20[oneWireCnt]) + " " + String(dsreadtemp(ds, sensors18B20[oneWireCnt]), 2));
+                float temp = dsreadtemp(ds, sensors18B20[oneWireCnt]);
+                if (!isnan(temp)) {
+                    ds18b20Errors[oneWireCnt] = 0;
+                    ds18b20Temps[oneWireCnt] = temp;
+                    Mb.MbData[oneWireDS18B20Byte + oneWireCnt] = temp*100;
+                    sendMsg("1w " + oneWireAddressToString(sensors18B20[oneWireCnt]) + " " + String(temp, 2));
+                } else {
+                    if (ds18b20Errors[oneWireCnt] < 255) ds18b20Errors[oneWireCnt]++;
+                    dbgln("1-wire read error: " + oneWireAddressToString(sensors18B20[oneWireCnt]));
+                }
                 oneWireCnt++;
             } else {
                 oneWireState = 0;

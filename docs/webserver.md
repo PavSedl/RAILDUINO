@@ -62,3 +62,9 @@ This tab displays detected **1-wire sensors** (DS2438 or DS18B20) with according
 <figure markdown="span">
 ![](media/webserver_04.png)
 </figure>
+
+!!! info "1-wire read errors"
+	- the sensor values are measured in the 1-wire Cycle, the webserver shows the last valid values  
+	- when the last read of a sensor failed, the sensor is shown in **red** with **ERR** - the tooltip shows the number of failed reads in a row  
+	- failed reads are not sent to UDP / Modbus - the supervisory system keeps the last valid value  
+	- with Serial Debug enabled the failed read is logged as "1-wire read error: [sensor address]"
